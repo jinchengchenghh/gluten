@@ -42,7 +42,7 @@ import org.apache.spark.unsafe.types.UTF8String
 
 trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with GlutenTestsBaseTrait {
 
-  protected override def beforeAll(): Unit = {
+  override def beforeAll(): Unit = {
     // prepare working paths
     val basePathDir = new File(basePath)
     if (basePathDir.exists()) {
@@ -56,7 +56,7 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
     _spark.sparkContext.setLogLevel("WARN")
   }
 
-  protected override def afterAll(): Unit = {
+  override def afterAll(): Unit = {
     try {
       super.afterAll()
     } finally {

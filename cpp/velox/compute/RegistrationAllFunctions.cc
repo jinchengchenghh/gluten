@@ -18,6 +18,7 @@
 #include "RowConstructor.cc"
 #include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"
 #include "velox/functions/sparksql/Register.h"
+#include "velox/functions/sparksql/aggregates/Register.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
@@ -38,6 +39,7 @@ void registerAllFunctions() {
   // functions.
   functions::prestosql::registerAllScalarFunctions();
   functions::sparksql::registerFunctions("");
+  functions::sparksql::aggregates::registerAggregateFunctions("");
   registerCustomFunctions();
   registerAllAggregateFunctions();
 }

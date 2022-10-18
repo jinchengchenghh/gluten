@@ -15,27 +15,9 @@
  * limitations under the License.
  */
 
-package io.glutenproject.substrait.type;
+package org.apache.spark.sql
 
-import io.substrait.proto.Type;
+class GlutenBloomFilterAggregateQuerySuite extends BloomFilterAggregateQuerySuite
+  with GlutenSQLTestsTrait {
 
-import java.io.Serializable;
-
-public class BinaryTypeNode implements TypeNode, Serializable {
-  private final Boolean nullable;
-
-  BinaryTypeNode(Boolean nullable) {
-    this.nullable = nullable;
-  }
-
-  @Override
-  public Type toProtobuf() {
-    Type.Binary.Builder binaryBuilder = Type.Binary.newBuilder();
-    if (nullable) {
-      binaryBuilder.setNullability(Type.Nullability.NULLABILITY_NULLABLE);
-    } else {
-      binaryBuilder.setNullability(Type.Nullability.NULLABILITY_REQUIRED);
-    }
-    return Type.newBuilder().setBinary(binaryBuilder.build()).build();
-  }
 }

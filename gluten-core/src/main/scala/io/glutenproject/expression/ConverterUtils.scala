@@ -442,6 +442,8 @@ object ConverterUtils extends Logging {
   // SparkSQL String functions of Velox
   final val ASCII = "ascii"
   final val CHR = "chr"
+
+  // Datetime
   final val EXTRACT = "extract"
   final val ENDS_WITH = "ends_with"
   final val CONCAT = "concat"
@@ -521,4 +523,11 @@ object ConverterUtils extends Logging {
 
   // Other
   final val ROW_CONSTRUCTOR = "row_constructor"
+
+  // Hash
+  final val XXHASH64 = "xxhash64"
+
+  // BloomFilter
+  final val BLOOM_FILTER_AGG = "bloom_filter_agg"
+  final val MIGHT_CONTAIN = "might_contain"
 }

@@ -107,7 +107,8 @@ class SubstraitContext extends Serializable {
       res
     } else {
       throw new IllegalStateException(
-        s"LocalFilesNodes index ${localFilesNodesIndex} exceeds the size of the LocalFilesNodes.")
+        s"LocalFilesNodes index ${localFilesNodesIndex} exceeds the size of the LocalFilesNodes " +
+          s"which is ${localFilesNodes.size}.")
     }
   }
 

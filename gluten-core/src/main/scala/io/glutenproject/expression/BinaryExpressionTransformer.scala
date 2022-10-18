@@ -282,6 +282,29 @@ class GetJsonObjectTransformer(json: Expression, path: Expression, original: Exp
   }
 }
 
+class BloomFilterMightContainTransformer(bloom: Expression, value: Expression, original: Expression)
+  extends BloomFilterMightContain(bloom: Expression, value: Expression)
+    with ExpressionTransformer {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val bloomNode =
+      bloom.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val valueNode =
+      value.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!bloomNode.isInstanceOf[ExpressionNode] ||
+      !valueNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, ConverterUtils.makeFuncName(
+      ConverterUtils.MIGHT_CONTAIN, Seq(bloom.dataType, value.dataType)))
+
+    val expressionNodes = Lists.newArrayList(bloomNode, valueNode)
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
 class Atan2Transformer(left: Expression, right: Expression, original: Expression)
   extends Atan2(left: Expression, right: Expression)
     with ExpressionTransformer
@@ -369,6 +392,8 @@ object BinaryExpressionTransformer {
         new Atan2Transformer(left, right, t)
       case h: Hypot =>
         new HypotTransformer(left, right, h)
+      case b: BloomFilterMightContain =>
+        new BloomFilterMightContainTransformer(left, right, b)
       case other =>
         throw new UnsupportedOperationException(s"not currently supported: $other.")
     }

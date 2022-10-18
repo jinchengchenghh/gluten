@@ -254,7 +254,8 @@ object ExpressionConverter extends Logging {
             expr,
             attributeSeq)
         }
-        new Murmur3HashTransformer(exprs, expr)
+        HashTransformer.create(replaceWithExpressionTransformer(exprs, attributeSeq),
+          m)
       case l: StringTrim =>
         if (l.trimStr != None) {
           // todo: to be remove when Velox support this argument
@@ -264,6 +265,16 @@ object ExpressionConverter extends Logging {
         TrimOperatorTransformer.create(
           replaceWithExpressionTransformer(l.srcStr, attributeSeq),
           expr)
+
+      case x: XxHash64 =>
+        logInfo(s"${expr.getClass} ${expr} is supported")
+        val exprs = x.children.map { expr =>
+          replaceWithExpressionTransformer(
+            expr,
+            attributeSeq)
+        }
+        HashTransformer.create(replaceWithExpressionTransformer(exprs, attributeSeq),
+          x)
       case l: StringTrimLeft =>
         if (l.trimStr != None) {
           throw new UnsupportedOperationException(s"not supported yet.")
@@ -285,6 +296,12 @@ object ExpressionConverter extends Logging {
         throw new UnsupportedOperationException(
           s"${expr.getClass} or ${expr} is not currently supported.")
     }
+  }
+
+  def replaceWithExpressionTransformer(
+                                        exprs: Seq[Expression],
+                                        attributeSeq: Seq[Attribute]): Seq[Expression] = {
+    exprs.map(e => replaceWithExpressionTransformer(e, attributeSeq))
   }
 
   def containsSubquery(expr: Expression): Boolean =

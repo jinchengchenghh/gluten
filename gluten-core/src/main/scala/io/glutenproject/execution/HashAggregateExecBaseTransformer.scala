@@ -786,6 +786,22 @@ abstract class HashAggregateExecBaseTransformer(
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: $other.")
           }
+        case BloomFilterAggregate(_, _, _, _, _) =>
+          mode match {
+            case Partial =>
+              val bloom = aggregateFunc.asInstanceOf[BloomFilterAggregate]
+              val aggBufferAttr = bloom.inputAggBufferAttributes
+              for (index <- aggBufferAttr.indices) {
+                val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
+                aggregateAttr += attr
+              }
+              res_index += aggBufferAttr.size
+            case Final =>
+              aggregateAttr += aggregateAttributeList(res_index)
+              res_index += 1
+            case other =>
+              throw new UnsupportedOperationException(s"not currently supported: $other.")
+          }
         case other =>
           throw new UnsupportedOperationException(s"not currently supported: $other.")
       }

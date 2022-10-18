@@ -46,6 +46,9 @@ object AggregateFunctionsBuilder {
       case stddevSamp: StddevSamp =>
         ConverterUtils.makeFuncName(
           ConverterUtils.STDDEV_SAMP, Seq(stddevSamp.child.dataType), FunctionConfig.OPT)
+      case bloom: BloomFilterAggregate =>
+        ConverterUtils.makeFuncName(ConverterUtils.BLOOM_FILTER_AGG, Seq(bloom.child.dataType),
+          FunctionConfig.OPT)
       case other =>
         throw new UnsupportedOperationException(s"not currently supported: $other.")
     }
