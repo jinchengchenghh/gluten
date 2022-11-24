@@ -283,7 +283,7 @@ class GetJsonObjectTransformer(json: Expression, path: Expression, original: Exp
 }
 
 class BloomFilterMightContainTransformer(bloom: Expression, value: Expression, original: Expression)
-  extends BloomFilterMightContain(bloom: Expression, value: Expression)
+  extends BloomFilterMightContainShim(bloom: Expression, value: Expression)
     with ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
@@ -392,9 +392,11 @@ object BinaryExpressionTransformer {
         new Atan2Transformer(left, right, t)
       case h: Hypot =>
         new HypotTransformer(left, right, h)
-      case b: BloomFilterMightContain =>
-        new BloomFilterMightContainTransformer(left, right, b)
       case other =>
-        throw new UnsupportedOperationException(s"not currently supported: $other.")
+        if (other.getClass.getSimpleName.equals("BloomFilterMightContain")) {
+          new BloomFilterMightContainTransformer(left, right, other)
+        } else {
+          throw new UnsupportedOperationException(s"not currently supported: $other.")
+        }
     }
 }

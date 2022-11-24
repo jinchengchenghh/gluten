@@ -14,43 +14,71 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.ExpressionBuilder
 
 import org.apache.spark.sql.catalyst.expressions.aggregate._
+import org.apache.spark.sql.types.LongType
+import org.apache.spark.util.sketch.BloomFilter
 
 object AggregateFunctionsBuilder {
 
   def create(args: java.lang.Object, aggregateFunc: AggregateFunction): Long = {
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionMap =
+      args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName = aggregateFunc match {
       case sum: Sum =>
         ConverterUtils.makeFuncName(
-          ConverterUtils.SUM, Seq(sum.child.dataType), FunctionConfig.OPT)
+          ConverterUtils.SUM,
+          Seq(sum.child.dataType),
+          FunctionConfig.OPT
+        )
       case avg: Average =>
         ConverterUtils.makeFuncName(
-          ConverterUtils.AVG, Seq(avg.child.dataType), FunctionConfig.OPT)
+          ConverterUtils.AVG,
+          Seq(avg.child.dataType),
+          FunctionConfig.OPT
+        )
       case count: Count =>
         val childrenTypes = count.children.map(child => child.dataType)
         ConverterUtils.makeFuncName(
-          ConverterUtils.COUNT, childrenTypes, FunctionConfig.OPT)
+          ConverterUtils.COUNT,
+          childrenTypes,
+          FunctionConfig.OPT
+        )
       case min: Min =>
         ConverterUtils.makeFuncName(
-          ConverterUtils.MIN, Seq(min.child.dataType), FunctionConfig.OPT)
+          ConverterUtils.MIN,
+          Seq(min.child.dataType),
+          FunctionConfig.OPT
+        )
       case max: Max =>
         ConverterUtils.makeFuncName(
-          ConverterUtils.MAX, Seq(max.child.dataType), FunctionConfig.OPT)
+          ConverterUtils.MAX,
+          Seq(max.child.dataType),
+          FunctionConfig.OPT
+        )
       case stddevSamp: StddevSamp =>
         ConverterUtils.makeFuncName(
-          ConverterUtils.STDDEV_SAMP, Seq(stddevSamp.child.dataType), FunctionConfig.OPT)
-      case bloom: BloomFilterAggregate =>
-        ConverterUtils.makeFuncName(ConverterUtils.BLOOM_FILTER_AGG, Seq(bloom.child.dataType),
-          FunctionConfig.OPT)
+          ConverterUtils.STDDEV_SAMP,
+          Seq(stddevSamp.child.dataType),
+          FunctionConfig.OPT
+        )
       case other =>
-        throw new UnsupportedOperationException(s"not currently supported: $other.")
+        if (other.getClass.getSimpleName.equals("BloomFilterAggregate")) {
+          // this aggregate only support long datatype
+          ConverterUtils.makeFuncName(
+            ConverterUtils.BLOOM_FILTER_AGG,
+            Seq(LongType, LongType, LongType),
+            FunctionConfig.OPT
+          )
+        } else {
+          throw new UnsupportedOperationException(
+            s"not currently supported: $other."
+          )
+        }
     }
     ExpressionBuilder.newScalarFunction(functionMap, functionName)
   }
