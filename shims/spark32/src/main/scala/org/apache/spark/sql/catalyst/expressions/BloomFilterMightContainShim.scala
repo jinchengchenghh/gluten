@@ -22,15 +22,15 @@ case class BloomFilterMightContainShim(
     bloomFilterExpression: Expression,
     valueExpression: Expression)
   extends BinaryExpression {
-  override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = ???
+  override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = null
 
-  override def dataType: DataType = ???
+  override def dataType: DataType = null
 
-  override def left: Expression = ???
+  override def left: Expression = null
 
-  override def right: Expression = ???
+  override def right: Expression = null
 
   override protected def withNewChildrenInternal(
       newLeft: Expression,
-      newRight: Expression): Expression = ???
+      newRight: Expression): Expression = null
 }
