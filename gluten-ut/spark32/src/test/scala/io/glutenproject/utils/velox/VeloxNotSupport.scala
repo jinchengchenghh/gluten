@@ -19,7 +19,7 @@ package io.glutenproject.utils.velox
 
 import io.glutenproject.utils.NotSupport
 
-import org.apache.spark.sql.{BloomFilterAggregateQuerySuite, DateFunctionsSuite, GlutenBloomFilterAggregateQuerySuite, StringFunctionsSuite}
+import org.apache.spark.sql.StringFunctionsSuite
 import org.apache.spark.sql.catalyst.expressions._
 
 object VeloxNotSupport extends NotSupport {

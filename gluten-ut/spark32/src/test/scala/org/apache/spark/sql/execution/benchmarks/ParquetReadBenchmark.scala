@@ -197,7 +197,7 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
           hadoopConf = relation.sparkSession.sessionState.newHadoopConfWithOptions(relation.options)
         )
 
-      val newFileScanRDD = new FileScanRDD(spark, readFile, filePartitions, null)
+      val newFileScanRDD = new FileScanRDD(spark, readFile, filePartitions)
         .asInstanceOf[RDD[ColumnarBatch]]
 
       val rowCnt = newFileScanRDD
