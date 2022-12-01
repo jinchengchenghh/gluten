@@ -45,10 +45,8 @@ inline google::protobuf::util::TypeResolver* GetGeneratedTypeResolver() {
   return type_resolver.get();
 }
 
-arrow::Result<std::shared_ptr<arrow::Buffer>> SubstraitFromJSON(
-    arrow::util::string_view type_name,
-    arrow::util::string_view json) {
-  std::string type_url = "/substrait." + type_name.to_string();
+arrow::Result<std::shared_ptr<arrow::Buffer>> SubstraitFromJSON(std::string_view type_name, std::string_view json) {
+  std::string type_url = "/substrait." + std::string{type_name};
 
   google::protobuf::io::ArrayInputStream json_stream{json.data(), static_cast<int>(json.size())};
 
@@ -64,8 +62,8 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> SubstraitFromJSON(
   return arrow::Buffer::FromString(std::move(out));
 }
 
-arrow::Result<std::string> SubstraitToJSON(arrow::util::string_view type_name, const arrow::Buffer& buf) {
-  std::string type_url = "/substrait." + type_name.to_string();
+arrow::Result<std::string> SubstraitToJSON(std::string_view type_name, const arrow::Buffer& buf) {
+  std::string type_url = "/substrait." + std::string{type_name};
 
   google::protobuf::io::ArrayInputStream buf_stream{buf.data(), static_cast<int>(buf.size())};
 

@@ -66,11 +66,19 @@ function compile_velox_arrow {
     fi
     pushd $ARROW_SOURCE_DIR
     mkdir -p java/build
-    pushd java/build
+    pushd java/build 
     cmake \
-        -DCMAKE_INSTALL_PREFIX=$ARROW_INSTALL_DIR/lib \
+	      -DBUILD_TESTING=OFF \
+	      -DARROW_JAVA_JNI_ENABLE_DATASET=OFF \
+	      -DARROW_JAVA_JNI_ENABLE_GANDIVA=OFF \
+	      -DARROW_JAVA_JNI_ENABLE_ORC=OFF \
+        -DARROW_JAVA_JNI_ENABLE_PLASMA=OFF \
+        -DCMAKE_INSTALL_PREFIX=$ARROW_INSTALL_DIR/ \
         ..
     cmake --build . --target install
+    JNI_DIST_DIR=$ARROW_INSTALL_DIR/jni/
+    mkdir -p $JNI_DIST_DIR/x86_64
+    mv $ARROW_INSTALL_DIR/lib/* $JNI_DIST_DIR/x86_64/
     popd
 
     mkdir -p cpp/build
@@ -103,7 +111,7 @@ function compile_velox_arrow {
 
     cd java
     mvn clean install -P arrow-jni -pl c -am -Darrow.cpp.build.dir=$ARROW_INSTALL_DIR/lib -DskipTests -Dcheckstyle.skip \
-        -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR/lib -Dmaven.gitcommitid.skip=true
+        -Darrow.c.jni.dist.dir=$JNI_DIST_DIR -Dmaven.gitcommitid.skip=true
 }
 
 function compile_gazelle_arrow {
@@ -165,10 +173,10 @@ cd ${CURRENT_DIR}
 
 if [ $BUILD_ARROW == "ON" ]; then
   mkdir -p $BUILD_DIR
-  ARROW_REPO=https://github.com/oap-project/arrow.git
+  ARROW_REPO=https://github.com/jinchengchenghh/arrow.git
 
   if [ $BACKEND_TYPE == "velox" ]; then
-      ARROW_BRANCH=backend_velox_main
+      ARROW_BRANCH=backend_velox_master
   elif [ $BACKEND_TYPE == "gazelle_cpp" ]; then
       ARROW_BRANCH=arrow-8.0.0-gluten-20220427a
   else
