@@ -39,6 +39,7 @@ import org.apache.spark.sql.execution.aggregate._
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.util.sketch.BloomFilter
 
 import java.util
 import scala.collection.mutable.ListBuffer
@@ -813,7 +814,26 @@ abstract class HashAggregateExecBaseTransformer(
               throw new UnsupportedOperationException(s"not currently supported: $other.")
           }
         case other =>
-          throw new UnsupportedOperationException(s"not currently supported: $other.")
+        // for spark33
+          if (other.getClass.getSimpleName.equals("BloomFilterAggregate")) {
+            mode match {
+              case Partial =>
+                val bloom = aggregateFunc.asInstanceOf[TypedImperativeAggregate[BloomFilter]]
+                val aggBufferAttr = bloom.inputAggBufferAttributes
+                for (index <- aggBufferAttr.indices) {
+                  val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
+                  aggregateAttr += attr
+                }
+                res_index += aggBufferAttr.size
+              case Final =>
+                aggregateAttr += aggregateAttributeList(res_index)
+                res_index += 1
+              case other =>
+                throw new UnsupportedOperationException(s"not currently supported: $other.")
+            }
+          } else {
+            throw new UnsupportedOperationException(s"not currently supported: $other.")
+          }
       }
     }
     aggregateAttr.toList
