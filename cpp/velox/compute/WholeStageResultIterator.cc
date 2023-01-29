@@ -17,6 +17,7 @@ const std::string kReplacedWithDynamicFilterRows = "replacedWithDynamicFilterRow
 const std::string kFlushRowCount = "flushRowCount";
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
 std::atomic<int32_t> taskSerial;
+
 } // namespace
 
 std::shared_ptr<velox::core::QueryCtx> createNewVeloxQueryCtx(velox::memory::MemoryPool* memoryPool) {
@@ -209,7 +210,7 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
     for (int idx = 0; idx < paths.size(); idx++) {
       auto partitionKeys = extractPartitionColumnAndValue(paths[idx]);
       auto split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
-          kHiveConnectorId, paths[idx], format, starts[idx], lengths[idx], partitionKeys);
+          kHiveConnectorId, paths[idx], format, starts[idx], lengths[idx], partitionKeys, scanInfo->buckets[idx]);
       connectorSplits.emplace_back(split);
     }
 

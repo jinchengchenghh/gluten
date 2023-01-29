@@ -24,11 +24,13 @@ import io.glutenproject.memory.alloc.{NativeMemoryAllocatorManager, Spiller}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.vectorized.{GeneralOutIterator, Metrics, NativeExpressionEvaluator}
+
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.execution.datasources.PartitionedFile
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -41,6 +43,10 @@ trait IIteratorApi {
    */
   def genFilePartition(index: Int,
                        partitions: Seq[InputPartition],
+                       wsCxt: WholestageTransformContext): BaseGlutenPartition
+
+  def genFilePartitionForBucket(index: Int,
+                       partitions: Seq[PartitionedFile],
                        wsCxt: WholestageTransformContext): BaseGlutenPartition
 
   /**

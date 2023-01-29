@@ -26,7 +26,6 @@ object InputPartitionsUtil extends Logging {
 
   def genInputPartitionSeq(relation: HadoopFsRelation,
                            selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
-    // TODO: Support bucketed reads
     val openCostInBytes = relation.sparkSession.sessionState.conf.filesOpenCostInBytes
     val maxSplitBytes =
       FilePartition.maxSplitBytes(relation.sparkSession, selectedPartitions)

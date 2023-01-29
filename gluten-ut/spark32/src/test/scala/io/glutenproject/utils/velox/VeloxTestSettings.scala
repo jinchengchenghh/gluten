@@ -23,7 +23,8 @@ import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.GlutenAdaptiveQueryExecSuite
-import org.apache.spark.sql.execution.joins.{GlutenBroadcastJoinSuite, GlutenExistenceJoinSuite, GlutenOuterJoinSuite, GlutenInnerJoinSuite}
+import org.apache.spark.sql.execution.joins.{GlutenBroadcastJoinSuite, GlutenExistenceJoinSuite, GlutenInnerJoinSuite, GlutenOuterJoinSuite}
+import org.apache.spark.sql.sources.GlutenBucketedReadWithoutHiveSupportSuite
 
 class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameAggregateSuite]
@@ -94,6 +95,9 @@ class VeloxTestSettings extends BackendTestSettings {
     // struct join key not supported, fell-back to Vanilla join
     "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
   )
+
+  enableSuite[GlutenBucketedReadWithoutHiveSupportSuite].includeByPrefix(
+    "gluten")
 
   enableSuite[GlutenAdaptiveQueryExecSuite]
     .includeByPrefix(

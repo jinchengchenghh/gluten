@@ -18,6 +18,7 @@
 package io.glutenproject.substrait.rel;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class LocalFilesBuilder {
   private LocalFilesBuilder() {
@@ -25,8 +26,9 @@ public class LocalFilesBuilder {
 
   public static LocalFilesNode makeLocalFiles(Integer index, ArrayList<String> paths,
                                               ArrayList<Long> starts, ArrayList<Long> lengths,
+                                              List<Integer> buckets,
                                               LocalFilesNode.ReadFileFormat fileFormat) {
-    return new LocalFilesNode(index, paths, starts, lengths, fileFormat);
+    return new LocalFilesNode(index, paths, starts, lengths, buckets, fileFormat);
   }
 
   public static LocalFilesNode makeLocalFiles(String iterPath) {

@@ -19,8 +19,10 @@ package io.glutenproject.backendsapi.glutendata
 
 import java.util
 import java.util.concurrent.TimeUnit
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
+
 import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.backendsapi.IIteratorApi
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
@@ -34,6 +36,7 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.GlutenImplicitClass.{coalesce, ArrowColumnarBatchRetainer}
 import io.glutenproject.vectorized._
 import org.apache.arrow.vector.types.pojo.Schema
+
 import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.TaskMemoryManager
@@ -41,15 +44,16 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.softaffinity.SoftAffinityUtil
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.datasources.FilePartition
+import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionedFile}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util.ExecutorManager
 import org.apache.spark.util.memory.TaskMemoryResources
-
 import java.net.URLDecoder
+
+import com.google.common.collect.ImmutableList
 
 abstract class GlutenIteratorApi extends IIteratorApi with Logging {
 
@@ -60,8 +64,7 @@ abstract class GlutenIteratorApi extends IIteratorApi with Logging {
    */
   override def genFilePartition(index: Int,
                                 partitions: Seq[InputPartition],
-                                wsCxt: WholestageTransformContext
-                               ): BaseGlutenPartition = {
+                                wsCxt: WholestageTransformContext): BaseGlutenPartition = {
     val localFilesNodesWithLocations = partitions.indices.map(i =>
       partitions(i) match {
         case f: FilePartition =>
@@ -75,8 +78,33 @@ abstract class GlutenIteratorApi extends IIteratorApi with Logging {
             lengths.add(new java.lang.Long(file.length))
           }
           (LocalFilesBuilder.makeLocalFiles(
-            f.index, paths, starts, lengths, fileFormat),
+            f.index, paths, starts, lengths, null, fileFormat),
             SoftAffinityUtil.getFilePartitionLocations(f))
+      }
+    )
+    wsCxt.substraitContext.initLocalFilesNodesIndex(0)
+    wsCxt.substraitContext.setLocalFilesNodes(localFilesNodesWithLocations.map(_._1))
+    val substraitPlan = wsCxt.root.toProtobuf
+    GlutenPartition(index, substraitPlan, localFilesNodesWithLocations.head._2)
+  }
+
+  override def genFilePartitionForBucket(index: Int,
+                                         partitions: Seq[PartitionedFile],
+                                         wsCxt: WholestageTransformContext): BaseGlutenPartition = {
+    val localFilesNodesWithLocations = partitions.indices.map(i =>
+      partitions(i) match {
+        case file: PartitionedFile =>
+          val paths = new java.util.ArrayList[String]()
+          val starts = new java.util.ArrayList[java.lang.Long]()
+          val lengths = new java.util.ArrayList[java.lang.Long]()
+          val fileFormat = wsCxt.substraitContext.getFileFormat.get(0)
+          paths.add(URLDecoder.decode(file.filePath))
+          starts.add(new java.lang.Long(file.start))
+          lengths.add(new java.lang.Long(file.length))
+          val buckets = ImmutableList.of[Integer](index)
+          (LocalFilesBuilder.makeLocalFiles(i, paths, starts, lengths,
+            buckets, fileFormat),
+            file.locations)
       }
     )
     wsCxt.substraitContext.initLocalFilesNodesIndex(0)

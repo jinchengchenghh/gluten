@@ -141,6 +141,9 @@ message ReadRel {
         DwrfReadOptions dwrf = 12;
         google.protobuf.Any extension = 13;
       }
+
+      // The bucket id of this item
+      optional int32 bucket = 14;
     }
   }
 }

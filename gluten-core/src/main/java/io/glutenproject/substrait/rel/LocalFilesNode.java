@@ -21,12 +21,15 @@ import io.substrait.proto.ReadRel;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 
 public class LocalFilesNode implements Serializable {
   private final Integer index;
   private final ArrayList<String> paths = new ArrayList<>();
   private final ArrayList<Long> starts = new ArrayList<>();
   private final ArrayList<Long> lengths = new ArrayList<>();
+
+  private List<Integer> buckets;
 
   // The format of file to read.
   public enum ReadFileFormat {
@@ -41,12 +44,14 @@ public class LocalFilesNode implements Serializable {
   private Boolean iterAsInput = false;
 
   LocalFilesNode(Integer index, ArrayList<String> paths,
-                 ArrayList<Long> starts, ArrayList<Long> lengths,
+                 ArrayList<Long> starts, ArrayList<Long> lengths, List<Integer> buckets,
                  ReadFileFormat fileFormat) {
     this.index = index;
     this.paths.addAll(paths);
     this.starts.addAll(starts);
     this.lengths.addAll(lengths);
+    // The bucket is same to index if present
+    this.buckets = buckets;
     this.fileFormat = fileFormat;
   }
 
@@ -78,6 +83,9 @@ public class LocalFilesNode implements Serializable {
       }
       fileBuilder.setLength(lengths.get(i));
       fileBuilder.setStart(starts.get(i));
+      if (buckets != null) {
+        fileBuilder.setBucket(buckets.get(i));
+      }
       switch (fileFormat) {
         case ParquetReadFormat:
           ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions parquetReadOptions =

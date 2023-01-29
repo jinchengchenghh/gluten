@@ -20,15 +20,20 @@ package io.glutenproject.execution
 import java.util.concurrent.TimeUnit.NANOSECONDS
 
 import scala.collection.mutable.HashMap
+import scala.collection.Seq
+
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.vectorized.OperatorMetrics
+import org.apache.hadoop.fs.Path
+
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.TableIdentifier
+import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
+import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, PlanExpression, Predicate}
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.{FileSourceScanExec, InSubqueryExec, SQLExecution, ScalarSubquery, SparkPlan}
-import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.execution.{FileSourceScanExec, InSubqueryExec, PartitionedFileUtil, ScalarSubquery, SparkPlan, SQLExecution}
+import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, FileScanRDD, HadoopFsRelation, PartitionDirectory, PartitionedFile}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -181,8 +186,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
 
   override def doValidate(): Boolean = {
     // Bucketing table has `bucketId` in filename, should apply this in backends
-    if (BackendsApiManager.getTransformerApiInstance.supportsReadFileFormat(relation.fileFormat) &&
-    !bucketedScan) {
+    if (BackendsApiManager.getTransformerApiInstance.supportsReadFileFormat(relation.fileFormat)) {
       super.doValidate()
     } else {
       false
@@ -281,6 +285,49 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     }
     sendDriverMetrics()
     selected
+  }
+
+  def createBucketedReadRDD(wsCxt: WholestageTransformContext): Seq[InputPartition] = {
+    val bucketSpec = relation.bucketSpec.get
+    logInfo(s"Planning with ${bucketSpec.numBuckets} buckets")
+    val filesGroupedToBuckets =
+      dynamicallySelectedPartitions.flatMap { p =>
+        p.files.map { f =>
+          PartitionedFileUtil.getPartitionedFile(f, f.getPath, p.values)
+        }
+      }.groupBy { f =>
+        BucketingUtils
+          .getBucketId(new Path(f.filePath).getName)
+          // TODO(SPARK-39163): Throw an exception w/ error class for an invalid bucket file
+          .getOrElse(throw new IllegalStateException(s"Invalid bucket file ${f.filePath}"))
+      }
+
+    val prunedFilesGroupedToBuckets = if (optionalBucketSet.isDefined) {
+      val bucketSet = optionalBucketSet.get
+      filesGroupedToBuckets.filter {
+        f => bucketSet.get(f._1)
+      }
+    } else {
+      filesGroupedToBuckets
+    }
+
+    optionalNumCoalescedBuckets.map { numCoalescedBuckets =>
+      logInfo(s"Coalescing to ${numCoalescedBuckets} buckets")
+      val coalescedBuckets = prunedFilesGroupedToBuckets.groupBy(_._1 % numCoalescedBuckets)
+      Seq.tabulate(numCoalescedBuckets) { bucketId =>
+        val partitionedFiles = coalescedBuckets.get(bucketId).map {
+          _.values.flatten.toArray
+        }.getOrElse(Array.empty)
+        BackendsApiManager.getIteratorApiInstance
+          .genFilePartitionForBucket(bucketId, partitionedFiles, wsCxt)
+      }
+    }.getOrElse {
+      Seq.tabulate(bucketSpec.numBuckets) { bucketId =>
+        BackendsApiManager.getIteratorApiInstance
+          .genFilePartitionForBucket(bucketId,
+            prunedFilesGroupedToBuckets.getOrElse(bucketId, Array.empty).toSeq, wsCxt)
+      }
+    }
   }
 
 }
