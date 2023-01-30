@@ -19,6 +19,8 @@ package io.glutenproject.execution
 
 import java.util.concurrent.TimeUnit._
 
+import com.google.common.collect.ImmutableList
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
@@ -30,7 +32,6 @@ import org.apache.spark.sql.execution.vectorized.WritableColumnVector
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.broadcast
-
 import io.glutenproject.vectorized._
 
 class RowToColumnConverter(schema: StructType) extends Serializable {
@@ -282,7 +283,7 @@ case class GlutenRowToArrowColumnarExec(child: SparkPlan)
 
           override def next(): ColumnarBatch = {
             val vectors: Seq[WritableColumnVector] =
-              ArrowWritableColumnVector.allocateColumns(numRows, schema)
+              ArrowWritableColumnVector.allocateColumns(numRows, schema, ImmutableList.of())
             var rowCount = 0
             while (rowCount < numRows && rowIterator.hasNext) {
               val row = rowIterator.next()

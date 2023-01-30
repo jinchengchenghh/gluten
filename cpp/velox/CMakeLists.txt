@@ -104,7 +104,7 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(parquet::reader::thrift "${VELOX_COMPONENTS_PATH}/dwio/parquet/thrift/libvelox_dwio_parquet_thrift.a")
 
   if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-    add_velox_dependency(thrift "${VELOX_BUILD_PATH}/third_party/arrow_ep/src/arrow_ep-build/thrift_ep-install/lib/libthriftd.a")
+    add_velox_dependency(thrift "${VELOX_BUILD_PATH}/third_party/arrow_ep/src/arrow_ep-build/thrift_ep-install/lib/libthrift.a")
   else()
     add_velox_dependency(thrift "${VELOX_BUILD_PATH}/third_party/arrow_ep/src/arrow_ep-build/thrift_ep-install/lib/libthrift.a")
   endif()

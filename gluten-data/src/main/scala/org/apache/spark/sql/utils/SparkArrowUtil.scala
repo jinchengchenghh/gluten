@@ -17,10 +17,15 @@
 
 package org.apache.spark.sql.utils
 
+import java.lang
+
 import scala.collection.JavaConverters._
+
 import org.apache.arrow.vector.complex.MapVector
 import org.apache.arrow.vector.types.{DateUnit, FloatingPointPrecision, TimeUnit}
-import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
+import org.apache.arrow.vector.types.pojo.{ArrowType, DictionaryEncoding, Field, FieldType, Schema}
+import org.apache.parquet.Preconditions
+
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
@@ -75,18 +80,21 @@ object SparkArrowUtil {
   }
 
   /** Maps field from Spark to Arrow. NOTE: timeZoneId required for TimestampType */
-  def toArrowField(
-                    name: String, dt: DataType, nullable: Boolean, timeZoneId: String): Field = {
+  def toArrowField(name: String, dt: DataType, nullable: Boolean, timeZoneId: String,
+                    dictionary: DictionaryEncoding): Field = {
+    print("to Arrow field \n")
+//    val ex = new Exception()
+//    ex.printStackTrace()
     dt match {
       case ArrayType(elementType, containsNull) =>
         val fieldType = new FieldType(nullable, ArrowType.List.INSTANCE, null)
         new Field(name, fieldType,
-          Seq(toArrowField("element", elementType, containsNull, timeZoneId)).asJava)
+          Seq(toArrowField("element", elementType, containsNull, timeZoneId, dictionary)).asJava)
       case StructType(fields) =>
         val fieldType = new FieldType(nullable, ArrowType.Struct.INSTANCE, null)
         new Field(name, fieldType,
           fields.map { field =>
-            toArrowField(field.name, field.dataType, field.nullable, timeZoneId)
+            toArrowField(field.name, field.dataType, field.nullable, timeZoneId, dictionary)
           }.toSeq.asJava)
       case MapType(keyType, valueType, valueContainsNull) =>
         val mapType = new FieldType(nullable, new ArrowType.Map(false), null)
@@ -97,9 +105,9 @@ object SparkArrowUtil {
               .add(MapVector.KEY_NAME, keyType, nullable = false)
               .add(MapVector.VALUE_NAME, valueType, nullable = valueContainsNull),
             nullable = false,
-            timeZoneId)).asJava)
+            timeZoneId, dictionary)).asJava)
       case dataType =>
-        val fieldType = new FieldType(nullable, toArrowType(dataType, timeZoneId), null)
+        val fieldType = new FieldType(nullable, toArrowType(dataType, timeZoneId), dictionary)
         new Field(name, fieldType, Seq.empty[Field].asJava)
     }
   }
@@ -126,10 +134,20 @@ object SparkArrowUtil {
   }
 
   /** Maps schema from Spark to Arrow. NOTE: timeZoneId required for TimestampType in StructType */
-  def toArrowSchema(schema: StructType, timeZoneId: String): Schema = {
-    new Schema(schema.map { field =>
-      toArrowField(field.name, field.dataType, field.nullable, timeZoneId)
-    }.asJava)
+  def toArrowSchema(schema: StructType, timeZoneId: String,
+                    dictionaries: Seq[DictionaryEncoding]): Schema = {
+    if (dictionaries.isEmpty) {
+      new Schema(schema.map { field =>
+        toArrowField(field.name, field.dataType, field.nullable, timeZoneId, null)
+      }.asJava)
+    } else {
+      Preconditions.checkArgument(schema.fields.length == dictionaries.size,
+        "schema fields length should be same with dictionary")
+      new Schema((schema zip dictionaries).map { case (field, dictionaries) =>
+        toArrowField(field.name, field.dataType, field.nullable, timeZoneId, dictionaries)
+      }.asJava)
+    }
+
   }
 
   def fromArrowSchema(schema: Schema): StructType = {

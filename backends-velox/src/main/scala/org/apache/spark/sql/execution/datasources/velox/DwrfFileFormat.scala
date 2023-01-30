@@ -59,7 +59,7 @@ class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializabl
                                context: TaskAttemptContext): OutputWriter = {
         val originPath = path
         val arrowSchema = SparkArrowUtil.toArrowSchema(
-          dataSchema, SQLConf.get.sessionLocalTimeZone)
+          dataSchema, SQLConf.get.sessionLocalTimeZone, null)
         val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
         var instanceId = -1L
         val dwrfDatasourceJniWrapper = new DwrfDatasourceJniWrapper()

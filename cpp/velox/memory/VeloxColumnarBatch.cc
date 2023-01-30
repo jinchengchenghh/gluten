@@ -1,4 +1,5 @@
 #include "VeloxColumnarBatch.h"
+#include <iostream>
 
 namespace gluten {
 
@@ -17,10 +18,10 @@ void VeloxColumnarBatch::EnsureFlattened() {
   }
 
   // Perform copy to flatten dictionary vectors.
-  RowVectorPtr copy = std::dynamic_pointer_cast<RowVector>(
-      BaseVector::create(rowVector_->type(), rowVector_->size(), rowVector_->pool()));
-  copy->copy(rowVector_.get(), 0, 0, rowVector_->size());
-  flattened_ = copy;
+  // RowVectorPtr copy = std::dynamic_pointer_cast<RowVector>(
+  //     BaseVector::create(rowVector_->type(), rowVector_->size(), rowVector_->pool()));
+  // copy->copy(rowVector_.get(), 0, 0, rowVector_->size());
+  flattened_ = rowVector_;
   auto endTime = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count();
   exportNanos_ += duration;
@@ -37,6 +38,19 @@ std::shared_ptr<ArrowArray> VeloxColumnarBatch::exportArrowArray() {
   auto out = std::make_shared<ArrowArray>();
   EnsureFlattened();
   facebook::velox::exportToArrow(flattened_, *out, GetDefaultWrappedVeloxMemoryPool());
+
+// {
+
+//   auto out2 = std::make_shared<ArrowArray>();
+//   EnsureFlattened();
+//   facebook::velox::exportToArrow(flattened_, *out2, GetDefaultWrappedVeloxMemoryPool());
+//   auto schema2 = exportArrowSchema();
+//   auto maybeBatch = arrow::ImportRecordBatch(out2.get(), schema2.get());
+//   if (!maybeBatch.ok()) {
+//     throw gluten::GlutenException("Get batch failed!");
+//   }
+//   std::cout << maybeBatch.ValueOrDie()->ToString() << std::endl;;
+// }
   return out;
 }
 

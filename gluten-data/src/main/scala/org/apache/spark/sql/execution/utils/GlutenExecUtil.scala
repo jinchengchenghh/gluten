@@ -19,11 +19,11 @@ package org.apache.spark.sql.execution.utils
 
 import scala.collection.JavaConverters._
 
+import com.google.common.collect.ImmutableList
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.GlutenArrowUtil
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativePartitioning}
-
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
 
 import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
@@ -108,8 +108,11 @@ object GlutenExecUtil {
           }
           .map { cb =>
             val startTime = System.nanoTime()
+            // TODO: maybe need to add dictionary
+            print("allocate column for pid\n")
             val pidVec = ArrowWritableColumnVector
-              .allocateColumns(cb.numRows, new StructType().add("pid", IntegerType))
+              .allocateColumns(cb.numRows, new StructType().add("pid", IntegerType),
+                ImmutableList.of())
               .head
             (0 until cb.numRows).foreach { i =>
               val row = cb.getRow(i)

@@ -345,6 +345,19 @@ class TestOperator extends WholeStageTransformerSuite {
     }
   }
 
+  test("test_union two tables 2") {
+    withSQLConf("spark.sql.adaptive.enabled" -> "false") {
+      spark.sql(
+        """
+          |select orderkey from (
+          | select l_orderkey as orderkey from lineitem
+          | union
+          | select o_orderkey as orderkey from orders
+          |);
+          |""".stripMargin).explain()
+    }
+  }
+
   test("test 'select global/local limit'") {
     withSQLConf("spark.sql.adaptive.enabled" -> "false") {
       runQueryAndCompare(

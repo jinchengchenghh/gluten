@@ -148,7 +148,7 @@ class ColumnarArrowPythonRunner(
 
       protected override def writeIteratorToStream(dataOut: DataOutputStream): Unit = {
         var numRows: Long = 0
-        val arrowSchema = SparkArrowUtil.toArrowSchema(schema, timeZoneId)
+        val arrowSchema = SparkArrowUtil.toArrowSchema(schema, timeZoneId, Seq())
         val allocator = ArrowBufferAllocators.contextInstance().newChildAllocator(
           s"stdout writer for $pythonExec", 0, Long.MaxValue)
         val root = VectorSchemaRoot.create(arrowSchema, allocator)

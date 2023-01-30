@@ -23,7 +23,7 @@ import java.util
 
 import scala.collection.JavaConverters._
 
-import com.google.common.collect.Lists
+import com.google.common.collect.{ImmutableList, Lists}
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.expression.CodeGeneration
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
@@ -136,7 +136,8 @@ object GlutenArrowUtil extends Logging {
           val resultStructType = StructType(
             attributes.map(a => StructField(a.name, a.dataType, a.nullable, a.metadata)))
           val resultColumnVectors =
-            ArrowWritableColumnVector.allocateColumns(0, resultStructType).toArray
+            ArrowWritableColumnVector.allocateColumns(0, resultStructType,
+              ImmutableList.of()).toArray
           return new ColumnarBatch(resultColumnVectors.map(_.asInstanceOf[ColumnVector]), 0)
         }
         try {
@@ -195,7 +196,8 @@ object GlutenArrowUtil extends Logging {
                 .map(a => StructField(a.name, a.dataType, a.nullable, a.metadata)))
           }
           val resultColumnVectors =
-            ArrowWritableColumnVector.allocateColumns(0, resultStructType).toArray
+            ArrowWritableColumnVector.allocateColumns(0, resultStructType,
+              ImmutableList.of()).toArray
           return new ColumnarBatch(resultColumnVectors.map(_.asInstanceOf[ColumnVector]), 0)
         }
       }
@@ -229,7 +231,8 @@ object GlutenArrowUtil extends Logging {
           val resultStructType = StructType(
             attributes.map(a => StructField(a.name, a.dataType, a.nullable, a.metadata)))
           val resultColumnVectors =
-            ArrowWritableColumnVector.allocateColumns(0, resultStructType).toArray
+            ArrowWritableColumnVector.allocateColumns(0, resultStructType,
+              ImmutableList.of()).toArray
           return new ColumnarBatch(resultColumnVectors.map(_.asInstanceOf[ColumnVector]), 0)
         }
         try {
@@ -347,7 +350,8 @@ object GlutenArrowUtil extends Logging {
       field =>
         val dt = SparkArrowUtil.fromArrowField(field)
         fields.add(
-          SparkArrowUtil.toArrowField(field.getName, dt, true, SparkSchemaUtil.getLocalTimezoneID))
+          SparkArrowUtil.toArrowField(field.getName, dt, true, SparkSchemaUtil.getLocalTimezoneID,
+            field.getDictionary))
     }
     new Schema(fields)
   }

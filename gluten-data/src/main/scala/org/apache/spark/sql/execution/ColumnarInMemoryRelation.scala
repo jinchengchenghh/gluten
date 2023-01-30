@@ -24,6 +24,7 @@ import scala.collection.mutable.ArrayBuffer
 
 import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
 import com.esotericsoftware.kryo.io.{Input, Output}
+import com.google.common.collect.ImmutableList
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
@@ -238,7 +239,8 @@ class ArrowColumnarCachedBatchSerializer extends DefaultCachedBatchSerializer {
               val resultStructType = StructType(selectedAttributes.map(a =>
                 StructField(a.name, a.dataType, a.nullable, a.metadata)))
               val resultColumnVectors =
-                ArrowWritableColumnVector.allocateColumns(0, resultStructType).toArray
+                ArrowWritableColumnVector.allocateColumns(0, resultStructType,
+                  ImmutableList.of()).toArray
               new ColumnarBatch(resultColumnVectors.map(_.asInstanceOf[ColumnVector]), 0)
             }
 

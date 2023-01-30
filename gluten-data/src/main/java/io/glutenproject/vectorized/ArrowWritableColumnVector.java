@@ -44,6 +44,7 @@ import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.holders.NullableVarBinaryHolder;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
+import org.apache.arrow.vector.types.pojo.DictionaryEncoding;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.spark.sql.catalyst.util.DateTimeUtils;
@@ -61,6 +62,7 @@ import org.apache.spark.unsafe.Platform;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.collection.JavaConverters;
 
 import java.math.BigDecimal;
 import java.nio.ByteOrder;
@@ -96,9 +98,10 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
    * Capacity is in number of elements, not number of bytes.
    */
   public static ArrowWritableColumnVector[] allocateColumns(
-      int capacity, StructType schema) {
+      int capacity, StructType schema, List<DictionaryEncoding> dictionaries) {
     String timeZoneId = SparkSchemaUtil.getLocalTimezoneID();
-    Schema arrowSchema = SparkArrowUtil.toArrowSchema(schema, timeZoneId);
+    Schema arrowSchema = SparkArrowUtil.toArrowSchema(schema, timeZoneId,
+        JavaConverters.asScalaIterator(dictionaries.iterator()).toSeq());
     VectorSchemaRoot newRoot =
         VectorSchemaRoot.create(arrowSchema, ArrowBufferAllocators.contextInstance());
 
@@ -177,7 +180,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     refCnt.getAndIncrement();
     String timeZoneId = SparkSchemaUtil.getLocalTimezoneID();
     List<Field> fields =
-        Arrays.asList(SparkArrowUtil.toArrowField("col", dataType, true, timeZoneId));
+        Arrays.asList(SparkArrowUtil.toArrowField("col", dataType, true, timeZoneId, null));
     Schema arrowSchema = new Schema(fields);
     VectorSchemaRoot root =
         VectorSchemaRoot.create(arrowSchema, ArrowBufferAllocators.contextInstance());

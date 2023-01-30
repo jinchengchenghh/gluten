@@ -33,6 +33,13 @@ using namespace facebook::velox;
 namespace gluten {
 
 arrow::Status VeloxColumnarToRowConverter::Init() {
+
+    // Perform copy to flatten dictionary vectors.
+  RowVectorPtr copy = std::dynamic_pointer_cast<RowVector>(
+      BaseVector::create(rv_->type(), rv_->size(), rv_->pool()));
+  copy->copy(rv_.get(), 0, 0, rv_->size());
+  rv_ = copy;
+
   num_rows_ = rv_->size();
   num_cols_ = rv_->childrenSize();
 

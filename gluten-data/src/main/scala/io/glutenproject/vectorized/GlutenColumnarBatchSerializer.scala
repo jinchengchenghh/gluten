@@ -22,11 +22,12 @@ import java.nio.ByteBuffer
 
 import scala.reflect.ClassTag
 
+import com.google.common.collect.ImmutableList
 import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.GlutenArrowAbiUtil
-
 import org.apache.arrow.c.ArrowSchema
+import org.apache.arrow.flatbuf.DictionaryEncoding
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorLoader
 
@@ -63,8 +64,10 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
 
       private val shuffleReaderHandle = {
         val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
+        // TODO: maybe should get dictionary as arrow array
+        print("shuffle read serialize schema \n")
         val arrowSchema =
-          SparkSchemaUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
+          SparkSchemaUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone, Seq())
         GlutenArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
         val handle = ShuffleReaderJniWrapper.make(
           JniByteInputStreams.create(in), cSchema.memoryAddress())

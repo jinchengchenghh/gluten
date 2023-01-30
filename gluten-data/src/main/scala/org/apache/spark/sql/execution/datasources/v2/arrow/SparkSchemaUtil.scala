@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution.datasources.v2.arrow
 
 import java.util.{Objects, TimeZone}
 
-import org.apache.arrow.vector.types.pojo.Schema
+import org.apache.arrow.vector.types.pojo.{DictionaryEncoding, Schema}
 
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
@@ -31,8 +31,9 @@ object SparkSchemaUtil {
     SparkArrowUtil.fromArrowSchema(schema)
   }
 
-  def toArrowSchema(schema: StructType, timeZoneId: String): Schema = {
-    SparkArrowUtil.toArrowSchema(schema, timeZoneId)
+  def toArrowSchema(schema: StructType, timeZoneId: String,
+                    dictionaries: Seq[DictionaryEncoding]): Schema = {
+    SparkArrowUtil.toArrowSchema(schema, timeZoneId, dictionaries)
   }
 
   def isTimeZoneIDEquivalentToUTC(zoneId: String): Boolean = {

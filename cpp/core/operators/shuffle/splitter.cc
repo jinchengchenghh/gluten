@@ -921,7 +921,8 @@ arrow::Status Splitter::SplitFixedType(const uint8_t* src_addr, const std::vecto
 
 arrow::Status Splitter::SplitFixedWidthValueBuffer(const arrow::RecordBatch& rb) {
   std::vector<row_offset_type> partition_buffer_idx_offset;
-
+  std::cout << "print record batch schema"<< rb.schema()->ToString() << std::endl;;
+  std::cout << "print record batch"<< rb.ToString() << std::endl;;
   for (auto col = 0; col < fixed_width_col_cnt_; ++col) {
     const auto& dst_addrs = partition_fixed_width_value_addrs_[col];
     auto col_idx = array_idx_[col];

@@ -148,7 +148,7 @@ abstract class GlutenIteratorApi extends IIteratorApi with Logging {
           }
 
           // chendi: We need make sure target FieldTypes are exactly the same as src
-          val expectedOutputArrowFields = if (batchesToAppend.size > 0) {
+          val (expectedOutputArrowFields) = if (batchesToAppend.size > 0) {
             (0 until batchesToAppend(0).numCols).map(i => {
               ArrowColumnarBatches
                 .ensureLoaded(
@@ -165,7 +165,8 @@ abstract class GlutenIteratorApi extends IIteratorApi with Logging {
             SparkArrowUtil.fromArrowSchema(new Schema(expectedOutputArrowFields.asJava))
           val beforeConcat = System.nanoTime
           val resultColumnVectors =
-            ArrowWritableColumnVector.allocateColumns(rowCount, resultStructType).toArray
+            ArrowWritableColumnVector.allocateColumns(rowCount, resultStructType,
+              expectedOutputArrowFields.map(_.getDictionary).asJava).toArray
           val target =
             new ColumnarBatch(resultColumnVectors.map(_.asInstanceOf[ColumnVector]), rowCount)
           coalesce(target, batchesToAppend.toList)
