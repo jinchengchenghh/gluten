@@ -24,10 +24,13 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 #include <thread>
 
 #include "compute/VeloxBackend.h"
+#include "velox/dwio/parquet/tests/ParquetTpchTestBase.h"
+#include "velox/exec/tests/utils/HiveConnectorTestBase.h"
 
 DEFINE_bool(print_result, true, "Print result for execution");
 DEFINE_string(write_file, "", "Write the output to parquet file, file absolute path");
@@ -165,3 +168,77 @@ void setCpu(uint32_t cpuindex) {
     exit(EXIT_FAILURE);
   }
 }
+
+void readTask(
+    const facebook::velox::exec::test::CursorParameters& params,
+    std::function<void(facebook::velox::exec::Task*)> addSplits) {
+  // 'result' borrows memory from cursor so the life cycle must be shorter.
+  std::vector<facebook::velox::RowVectorPtr> result;
+
+  std::shared_ptr<facebook::velox::core::QueryCtx> queryCtx =
+      std::make_shared<facebook::velox::core::QueryCtx>(nullptr);
+
+  facebook::velox::core::PlanFragment planFragment{
+      params.planNode, facebook::velox::core::ExecutionStrategy::kUngrouped, 1};
+  auto task = std::make_shared<facebook::velox::exec::Task>(
+      "plannode benchmark test task", std::move(planFragment), 0, std::move(queryCtx));
+  addSplits(task.get());
+  while (!task->isFinished()) {
+    facebook::velox::RowVectorPtr vector = task->next();
+    if (vector == nullptr) {
+      break;
+    }
+    // Perform copy to flatten dictionary vectors.
+    RowVectorPtr copy =
+        std::dynamic_pointer_cast<RowVector>(BaseVector::create(vector->type(), vector->size(), vector->pool()));
+    copy->copy(vector.get(), 0, 0, vector->size());
+    // vector->close();
+    // std::cout <<vector->toString()<< std::endl;
+    // std::cout <<vector->toString(0 ,100)<< std::endl;
+    // result.emplace_back(vector);
+  }
+}
+
+void executeQuery(
+    const facebook::velox::core::PlanNodePtr& planNode,
+    std::unordered_map<facebook::velox::core::PlanNodeId, std::vector<std::string>> dataFiles) {
+  bool noMoreSplits = false;
+  // constexpr int kNumSplits = 10;
+  // constexpr int kNumDrivers = 4;
+  static const std::string kHiveConnectorId = "test-hive";
+  auto addSplits = [&](exec::Task* task) {
+    if (!noMoreSplits) {
+      for (const auto& entry : dataFiles) {
+        std::vector<std::shared_ptr<facebook::velox::connector::ConnectorSplit>> connectorSplits;
+        connectorSplits.reserve(entry.second.size());
+        for (const auto& path : entry.second) {
+          auto split = std::make_shared<facebook::velox::connector::hive::HiveConnectorSplit>(
+              kHiveConnectorId, path, facebook::velox::dwio::common::FileFormat::PARQUET);
+          connectorSplits.emplace_back(split);
+        }
+
+        std::vector<facebook::velox::exec::Split> scanSplits;
+        scanSplits.reserve(connectorSplits.size());
+        for (const auto& connectorSplit : connectorSplits) {
+          // Bucketed group id (-1 means 'none').
+          int32_t groupId = -1;
+          scanSplits.emplace_back(facebook::velox::exec::Split(folly::copy(connectorSplit), groupId));
+        }
+        // auto const splits = HiveConnectorTestBase::makeHiveConnectorSplits(
+        //     path, kNumSplits, facebook::velox::dwio::common::FileFormat::PARQUET);
+        for (const auto& split : scanSplits) {
+          task->addSplit(entry.first, exec::Split(split));
+        }
+
+        task->noMoreSplits(entry.first);
+      }
+      noMoreSplits = true;
+    }
+  };
+  facebook::velox::exec::test::CursorParameters params;
+  // params.maxDrivers = kNumDrivers;
+  params.planNode = planNode;
+  readTask(params, addSplits);
+}
+
+// static std::shared_ptr<facebook::velox::exec::test::TempDirectoryPath> tempDirectory_;

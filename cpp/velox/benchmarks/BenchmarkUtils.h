@@ -152,3 +152,7 @@ std::shared_ptr<gluten::ResultIterator> getInputFromBatchVector(const std::strin
 std::shared_ptr<gluten::ResultIterator> getInputFromBatchStream(const std::string& path);
 
 void setCpu(uint32_t cpuindex);
+
+void executeQuery(
+    const facebook::velox::core::PlanNodePtr& planNode,
+    std::unordered_map<facebook::velox::core::PlanNodeId, std::vector<std::string>> dataFiles);

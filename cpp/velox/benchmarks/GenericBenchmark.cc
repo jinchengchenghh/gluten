@@ -166,7 +166,7 @@ int main(int argc, char** argv) {
   } while (0)
 
   GENERIC_BENCHMARK("InputFromBatchVector", getInputFromBatchVector);
-  GENERIC_BENCHMARK("InputFromBatchStream", getInputFromBatchStream);
+  // GENERIC_BENCHMARK("InputFromBatchStream", getInputFromBatchStream);
 
   ::benchmark::RunSpecifiedBenchmarks();
   ::benchmark::Shutdown();

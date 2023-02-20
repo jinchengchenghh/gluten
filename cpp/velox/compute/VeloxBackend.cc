@@ -342,9 +342,9 @@ std::shared_ptr<const core::PlanNode> VeloxBackend::getVeloxPlanNode(const ::sub
     }
   }
   auto planNode = subVeloxPlanConverter_->toVeloxPlan(splan);
-#ifdef GLUTEN_PRINT_DEBUG
+// #ifdef GLUTEN_PRINT_DEBUG
   std::cout << "Plan Node: " << std::endl << planNode->toString(true, true) << std::endl;
-#endif
+// #endif
   return planNode;
 }
 

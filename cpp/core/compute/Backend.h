@@ -46,7 +46,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
   /// Parse and cache the plan.
   /// Return true if parsed successfully.
   bool ParsePlan(const uint8_t* data, int32_t size, int32_t stageId, int32_t partitionId, int64_t taskId) {
-#ifdef GLUTEN_PRINT_DEBUG
+// #ifdef GLUTEN_PRINT_DEBUG
     auto buf = std::make_shared<arrow::Buffer>(data, size);
     auto maybe_plan_json = SubstraitFromPbToJson("Plan", *buf);
     if (maybe_plan_json.status().ok()) {
@@ -56,7 +56,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
     } else {
       std::cout << "Error parsing substrait plan to json: " << maybe_plan_json.status().ToString() << std::endl;
     }
-#endif
+// #endif
     return ParseProtobuf(data, size, &plan_);
   }
 

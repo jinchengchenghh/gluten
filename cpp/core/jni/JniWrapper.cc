@@ -181,10 +181,6 @@ class JavaArrowArrayIterator {
   std::shared_ptr<ColumnarBatch> Next() {
     JNIEnv* env;
     AttachCurrentThreadAsDaemonOrThrow(vm_, &env);
-#ifdef GLUTEN_PRINT_DEBUG
-    std::cout << "PICKING ITERATOR REF " << reinterpret_cast<long>(java_serialized_arrow_array_iterator_) << "..."
-              << std::endl;
-#endif
     if (!env->CallBooleanMethod(java_serialized_arrow_array_iterator_, serialized_arrow_array_iterator_hasNext)) {
       CheckException(env);
       return nullptr; // stream ended
@@ -516,7 +512,6 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeClose(JNIEnv* env, jobje
   if (it.use_count() > 2) {
     std::cout << "ArrowArrayResultIterator Id " << id << " use count is " << it.use_count() << std::endl;
   }
-  std::cout << "BatchIterator nativeClose." << std::endl;
 #endif
   result_iterator_holder_.Erase(id);
   JNI_METHOD_END()
