@@ -265,13 +265,29 @@ void collectFlatVectorBuffer<velox::TypeKind::VARBINARY>(
   collectFlatVectorBufferStringView(vector, buffers, pool);
 }
 
-void collectBuffers(
-    velox::BaseVector* vector,
-    std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
-    ShuffleBufferPool* pool) {
-  VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH_ALL(collectFlatVectorBuffer, vector->typeKind(), vector, buffers, pool);
-}
 } // namespace
+
+std::shared_ptr<arrow::Buffer> VeloxShuffleWriter::generateComplexTypeBuffers(velox::RowVectorPtr vector) {
+  auto arena = std::make_unique<StreamArena>(veloxPool_.get());
+  auto serializer =
+      serde_->createSerializer(asRowType(vector->type()), vector->size(), arena.get(), /* serdeOptions */ nullptr);
+  const IndexRange allRows{0, vector->size()};
+  serializer->append(vector, folly::Range(&allRows, 1));
+  auto serializedSize = serializer->maxSerializedSize();
+  auto flushBuffer = complexTypeFlushBuffer_[0];
+  if (flushBuffer == nullptr) {
+    GLUTEN_ASSIGN_OR_THROW(flushBuffer, arrow::AllocateResizableBuffer(serializedSize, options_.memory_pool.get()));
+  } else if (serializedSize > flushBuffer->capacity()) {
+    GLUTEN_THROW_NOT_OK(flushBuffer->Reserve(serializedSize));
+  }
+
+  auto valueBuffer = arrow::SliceMutableBuffer(flushBuffer, 0, serializedSize);
+  auto output = std::make_shared<arrow::io::FixedSizeBufferWriter>(valueBuffer);
+  serializer::presto::PrestoOutputStreamListener listener;
+  ArrowFixedSizeBufferOutputStream out(output, &listener);
+  serializer->flush(&out);
+  return valueBuffer;
+}
 
 arrow::Status VeloxShuffleWriter::split(ColumnarBatch* cb) {
   auto veloxColumnBatch = dynamic_cast<VeloxColumnarBatch*>(cb);
@@ -279,9 +295,18 @@ arrow::Status VeloxShuffleWriter::split(ColumnarBatch* cb) {
   RETURN_NOT_OK(initFromRowVector(rv));
   if (options_.partitioning_name == "single") {
     std::vector<std::shared_ptr<arrow::Buffer>> buffers;
+    std::vector<VectorPtr> complexChildren;
     for (auto& child : rv.children()) {
-      collectBuffers(child.get(), buffers, pool_.get());
+      if (child->encoding() == VectorEncoding::Simple::FLAT) {
+        VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH_ALL(
+            collectFlatVectorBuffer, child->typeKind(), child.get(), buffers, pool_.get());
+      } else {
+        complexChildren.emplace_back(child);
+      }
     }
+    auto rowVector = std::make_shared<RowVector>(
+        veloxPool_.get(), complexWriteType_, BufferPtr(nullptr), rv.size(), std::move(complexChildren));
+    buffers.emplace_back(generateComplexTypeBuffers(rowVector));
     RETURN_NOT_OK(cacheRecordBatch(0, rv.size(), buffers));
   } else {
     if (partitioner_->hasPid()) {
@@ -410,6 +435,7 @@ arrow::Status VeloxShuffleWriter::splitRowVector(const velox::RowVector& rv) {
   RETURN_NOT_OK(splitFixedWidthValueBuffer(rv));
   RETURN_NOT_OK(splitValidityBuffer(rv));
   RETURN_NOT_OK(splitBinaryArray(rv));
+  RETURN_NOT_OK(splitComplexType(rv));
   return arrow::Status::OK();
 }
 
@@ -722,6 +748,41 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     return arrow::Status::OK();
   }
 
+  arrow::Status VeloxShuffleWriter::splitComplexType(const velox::RowVector& rv) {
+    if (complexColumnIndices_.size() == 0) {
+      return arrow::Status::OK();
+    }
+    auto numRows = rv.size();
+    std::vector<std::vector<facebook::velox::IndexRange>> rowIndexs;
+    rowIndexs.resize(numPartitions_);
+    // TODO: maybe an estimated row is more reasonable
+    for (auto row = 0; row < numRows; ++row) {
+      auto partition = row2Partition_[row];
+      if (complexTypeData_[partition] == nullptr) {
+        // TODO: maybe memory issue, copy many times
+        complexTypeData_[partition] = std::move(serde_->createSerializer(
+            complexWriteType_, partition2RowCount_[partition], arena_.get(), /* serdeOptions */ nullptr));
+      }
+      rowIndexs[partition].emplace_back(IndexRange{row, 1});
+    }
+
+    std::vector<VectorPtr> childrens;
+    for (size_t i = 0; i < complexColumnIndices_.size(); ++i) {
+      auto colIdx = complexColumnIndices_[i];
+      auto column = rv.childAt(colIdx);
+      childrens.emplace_back(column);
+    }
+    auto rowVector = std::make_shared<RowVector>(
+        veloxPool_.get(), complexWriteType_, BufferPtr(nullptr), rv.size(), std::move(childrens));
+    for (auto pid = 0; pid < numPartitions_; pid++) {
+      if (rowIndexs[pid].size() != 0) {
+        complexTypeData_[pid]->append(rowVector, folly::Range(rowIndexs[pid].data(), rowIndexs[pid].size()));
+      }
+    }
+
+    return arrow::Status::OK();
+  }
+
   arrow::Status VeloxShuffleWriter::initColumnTypes(const velox::RowVector& rv) {
     schema_ = toArrowSchema(rv.type());
 
@@ -743,6 +804,9 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     // get arrow_column_types_ from schema
     ARROW_ASSIGN_OR_RAISE(arrowColumnTypes_, toShuffleWriterTypeId(schema_->fields()));
 
+    std::vector<std::string> complexNames;
+    std::vector<TypePtr> complexChildrens;
+
     for (size_t i = 0; i < arrowColumnTypes_.size(); ++i) {
       switch (arrowColumnTypes_[i]->id()) {
         case arrow::BinaryType::type_id:
@@ -751,9 +815,11 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           break;
         case arrow::StructType::type_id:
         case arrow::MapType::type_id:
-        case arrow::ListType::type_id:
+        case arrow::ListType::type_id: {
           complexColumnIndices_.push_back(i);
-          break;
+          complexNames.emplace_back(veloxColumnTypes_[i]->name());
+          complexChildrens.emplace_back(veloxColumnTypes_[i]);
+        } break;
         default:
           simpleColumnIndices_.push_back(i);
           break;
@@ -769,7 +835,11 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     binaryArrayEmpiricalSize_.resize(binaryColumnIndices_.size(), 0);
 
     inputHasNull_.resize(simpleColumnIndices_.size(), false);
-    complexTypeFlushSize_.resize(complexColumnIndices_.size(), 0);
+
+    complexTypeData_.resize(numPartitions_);
+    complexTypeFlushBuffer_.resize(numPartitions_);
+
+    complexWriteType_ = std::make_shared<RowType>(std::move(complexNames), std::move(complexChildrens));
 
     return arrow::Status::OK();
   }
@@ -802,7 +872,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       }
     }
 
-    VS_PRINT_VECTOR_MAPPING(binary_array_empirical_size_);
+    VS_PRINT_VECTOR_MAPPING(binaryArrayEmpiricalSize_);
 
     sizePerRow = std::accumulate(binaryArrayEmpiricalSize_.begin(), binaryArrayEmpiricalSize_.end(), 0);
 
@@ -867,7 +937,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         case arrow::StructType::type_id:
         case arrow::MapType::type_id:
         case arrow::ListType::type_id:
-          throw GlutenException("Not support this type " + arrowColumnTypes_[i]->name());
+          break;
         default: {
           std::shared_ptr<arrow::Buffer> valueBuffer;
           std::shared_ptr<arrow::Buffer> validityBuffer = nullptr;
@@ -945,7 +1015,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     std::vector<std::shared_ptr<arrow::Array>> arrays(numFields);
     std::vector<std::shared_ptr<arrow::Buffer>> allBuffers;
     // one column should have 2 buffers at least, string column has 3 column buffers
-    allBuffers.reserve(numFields * 2);
+    allBuffers.reserve(fixedWidthColumnCount_ * 2 + binaryColumnIndices_.size() * 3);
+    bool hasComplexType = false;
     for (int i = 0; i < numFields; ++i) {
       switch (arrowColumnTypes_[i]->id()) {
         case arrow::BinaryType::type_id:
@@ -987,8 +1058,9 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         }
         case arrow::StructType::type_id:
         case arrow::MapType::type_id:
-        case arrow::ListType::type_id:
-          throw GlutenException("Not support this type " + arrowColumnTypes_[i]->name());
+        case arrow::ListType::type_id: {
+          hasComplexType = true;
+        } break;
         default: {
           auto buffers = partitionBuffers_[fixedWidthIdx][partitionId];
           if (buffers[kValidityBufferIndex] != nullptr) {
@@ -1019,6 +1091,22 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           break;
         }
       }
+    }
+    if (hasComplexType && complexTypeData_[partitionId] != nullptr) {
+      auto flushBuffer = complexTypeFlushBuffer_[partitionId];
+      auto serializedSize = complexTypeData_[partitionId]->maxSerializedSize();
+      if (flushBuffer == nullptr) {
+        GLUTEN_ASSIGN_OR_THROW(flushBuffer, arrow::AllocateResizableBuffer(serializedSize, options_.memory_pool.get()));
+      } else if (serializedSize > flushBuffer->capacity()) {
+        GLUTEN_THROW_NOT_OK(flushBuffer->Reserve(serializedSize));
+      }
+      auto valueBuffer = arrow::SliceMutableBuffer(flushBuffer, 0, serializedSize);
+      auto output = std::make_shared<arrow::io::FixedSizeBufferWriter>(valueBuffer);
+      serializer::presto::PrestoOutputStreamListener listener;
+      ArrowFixedSizeBufferOutputStream out(output, &listener);
+      complexTypeData_[partitionId]->flush(&out);
+      allBuffers.emplace_back(valueBuffer);
+      complexTypeData_[partitionId] = nullptr;
     }
     return cacheRecordBatch(partitionId, numRows, std::move(allBuffers));
   }

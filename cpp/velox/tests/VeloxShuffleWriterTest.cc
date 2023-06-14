@@ -300,6 +300,29 @@ TEST_F(VeloxShuffleWriterTest, singlePartOtherType) {
   testShuffleWrite(*shuffleWriter, {vector});
 }
 
+TEST_F(VeloxShuffleWriterTest, singlePartComplexType) {
+  shuffleWriterOptions_.buffer_size = 10;
+  shuffleWriterOptions_.partitioning_name = "single";
+
+  GLUTEN_ASSIGN_OR_THROW(
+      auto shuffleWriter, VeloxShuffleWriter::create(1, partitionWriterCreator_, shuffleWriterOptions_))
+
+  auto vector = makeRowVector({
+      makeNullableFlatVector<int32_t>({std::nullopt, 1}),
+      makeRowVector({
+          makeFlatVector<int32_t>({1, 3}),
+          makeNullableFlatVector<velox::StringView>({std::nullopt, "de"}),
+      }),
+      makeNullableFlatVector<StringView>({std::nullopt, "10 I'm not inline string"}),
+      makeArrayVector<int64_t>({
+          {1, 2, 3, 4, 5},
+          {1, 2, 3},
+      }),
+      makeMapVector<int32_t, StringView>({{{1, "str1000"}, {2, "str2000"}}, {{3, "str3000"}, {4, "str4000"}}}),
+  });
+  testShuffleWrite(*shuffleWriter, {vector});
+}
+
 TEST_F(VeloxShuffleWriterTest, hashPart1Vector) {
   shuffleWriterOptions_.buffer_size = 4;
   shuffleWriterOptions_.partitioning_name = "hash";
@@ -356,6 +379,57 @@ TEST_F(VeloxShuffleWriterTest, hashPart1Vector) {
       makeLongDecimalFlatVector({232, 1212}, DECIMAL(20, 4)),
       makeNullableFlatVector<Date>({std::nullopt, Date(0)}),
       makeNullableFlatVector<Timestamp>({std::nullopt, Timestamp(0, 0)}),
+  });
+
+  testShuffleWriteMultiBlocks(*shuffleWriter_, {vector}, 2, dataVector->type(), {{firstBlock}, {secondBlock}});
+}
+
+TEST_F(VeloxShuffleWriterTest, hashPart1VectorComplexType) {
+  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.partitioning_name = "hash";
+
+  ARROW_ASSIGN_OR_THROW(shuffleWriter_, VeloxShuffleWriter::create(2, partitionWriterCreator_, shuffleWriterOptions_))
+  std::vector<VectorPtr> children = {
+      makeNullableFlatVector<int32_t>({std::nullopt, 1}),
+      makeRowVector({
+          makeFlatVector<int32_t>({1, 3}),
+          makeNullableFlatVector<velox::StringView>({std::nullopt, "de"}),
+      }),
+      makeNullableFlatVector<StringView>({std::nullopt, "10 I'm not inline string"}),
+      makeArrayVector<int64_t>({
+          {1, 2, 3, 4, 5},
+          {1, 2, 3},
+      }),
+      makeMapVector<int32_t, StringView>({{{1, "str1000"}, {2, "str2000"}}, {{3, "str3000"}, {4, "str4000"}}}),
+  };
+  auto dataVector = makeRowVector(children);
+  children.insert((children.begin()), makeFlatVector<int32_t>({1, 2}));
+  auto vector = makeRowVector(children);
+
+  auto firstBlock = makeRowVector({
+      makeNullableFlatVector<int32_t>({std::nullopt}),
+      makeRowVector({
+          makeFlatVector<int32_t>({1}),
+          makeNullableFlatVector<velox::StringView>({std::nullopt}),
+      }),
+      makeNullableFlatVector<StringView>({std::nullopt}),
+      makeArrayVector<int64_t>({
+          {1, 2, 3, 4, 5},
+      }),
+      makeMapVector<int32_t, StringView>({{{1, "str1000"}, {2, "str2000"}}}),
+  });
+
+  auto secondBlock = makeRowVector({
+      makeFlatVector<int32_t>({1}),
+      makeRowVector({
+          makeFlatVector<int32_t>({3}),
+          makeFlatVector<velox::StringView>({"de"}),
+      }),
+      makeFlatVector<StringView>({"10 I'm not inline string"}),
+      makeArrayVector<int64_t>({
+          {1, 2, 3},
+      }),
+      makeMapVector<int32_t, StringView>({{{3, "str3000"}, {4, "str4000"}}}),
   });
 
   testShuffleWriteMultiBlocks(*shuffleWriter_, {vector}, 2, dataVector->type(), {{firstBlock}, {secondBlock}});

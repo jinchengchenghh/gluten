@@ -20,6 +20,7 @@
 #include <arrow/array/array_binary.h>
 
 #include "memory/VeloxColumnarBatch.h"
+#include "velox/serializers/PrestoSerializer.h"
 #include "velox/vector/ComplexVector.h"
 #include "velox/vector/FlatVector.h"
 #include "velox/vector/arrow/Bridge.h"
@@ -127,6 +128,22 @@ VectorPtr readFlatVector<TypeKind::VARBINARY>(
   return readFlatVectorStringView(buffers, bufferIdx, length, type, pool);
 }
 
+std::unique_ptr<ByteStream> toByteStream(uint8_t* data, int32_t size) {
+  auto byteStream = std::make_unique<ByteStream>();
+  ByteRange byteRange{data, size, 0};
+  byteStream->resetInput({byteRange});
+  return byteStream;
+}
+
+RowVectorPtr readComplexType(std::shared_ptr<arrow::Buffer> buffer, RowTypePtr& rowType) {
+  RowVectorPtr result;
+  auto byteStream = toByteStream(const_cast<uint8_t*>(buffer->data()), buffer->size());
+  auto serde = std::make_unique<serializer::presto::PrestoVectorSerde>();
+  serde->deserialize(
+      byteStream.get(), getDefaultVeloxLeafMemoryPool().get(), rowType, &result, /* serdeOptions */ nullptr);
+  return result;
+}
+
 void readColumns(
     std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     memory::MemoryPool* pool,
@@ -134,10 +151,42 @@ void readColumns(
     const std::vector<TypePtr>& types,
     std::vector<VectorPtr>& result) {
   int32_t bufferIdx = 0;
+  std::vector<VectorPtr> flatResult;
+  std::vector<std::string> complexTypeColNames;
+  std::vector<TypePtr> complexTypeChildrens;
   for (int32_t i = 0; i < types.size(); ++i) {
-    auto res = VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH_ALL(
-        readFlatVector, types[i]->kind(), buffers, bufferIdx, numRows, types[i], pool);
-    result.emplace_back(std::move(res));
+    auto kind = types[i]->kind();
+    switch (kind) {
+      case TypeKind::ROW:
+      case TypeKind::MAP:
+      case TypeKind::ARRAY: {
+        complexTypeColNames.emplace_back(types[i]->name());
+        complexTypeChildrens.emplace_back(types[i]);
+      } break;
+      default:
+        break;
+    }
+  }
+
+  auto complexRowType =
+      std::make_shared<const RowType>(std::move(complexTypeColNames), std::move(complexTypeChildrens));
+  auto complexChildren = readComplexType(buffers[buffers.size() - 1], complexRowType)->children();
+  int32_t complexIdx = 0;
+  for (int32_t i = 0; i < types.size(); ++i) {
+    auto kind = types[i]->kind();
+    switch (kind) {
+      case TypeKind::ROW:
+      case TypeKind::MAP:
+      case TypeKind::ARRAY: {
+        result.emplace_back(std::move(complexChildren[complexIdx]));
+        complexIdx++;
+      } break;
+      default: {
+        auto res = VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH_ALL(
+            readFlatVector, types[i]->kind(), buffers, bufferIdx, numRows, types[i], pool);
+        result.emplace_back(std::move(res));
+      } break;
+    }
   }
 }
 

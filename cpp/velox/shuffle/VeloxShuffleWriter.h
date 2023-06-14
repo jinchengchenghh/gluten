@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 
+#include "velox/serializers/PrestoSerializer.h"
 #include "velox/type/Type.h"
 #include "velox/vector/ComplexVector.h"
 #include "velox/vector/FlatVector.h"
@@ -187,7 +188,9 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       uint32_t numPartitions,
       std::shared_ptr<PartitionWriterCreator> partitionWriterCreator,
       const ShuffleWriterOptions& options)
-      : ShuffleWriter(numPartitions, partitionWriterCreator, options) {}
+      : ShuffleWriter(numPartitions, partitionWriterCreator, options),
+        veloxPool_(getDefaultVeloxLeafMemoryPool()),
+        arena_(std::make_unique<facebook::velox::StreamArena>(veloxPool_.get())) {}
 
   arrow::Status init();
 
@@ -226,6 +229,8 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status splitBinaryArray(const facebook::velox::RowVector& rv);
 
+  arrow::Status splitComplexType(const facebook::velox::RowVector& rv);
+
   template <typename T>
   arrow::Status splitFixedType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs) {
     std::transform(
@@ -255,6 +260,8 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   arrow::Result<int32_t> evictLargestPartition(int64_t* size);
 
   arrow::Status evictPartition(uint32_t partitionId);
+
+  std::shared_ptr<arrow::Buffer> generateComplexTypeBuffers(facebook::velox::RowVectorPtr vector);
 
  protected:
   bool supportAvx512_ = false;
@@ -296,12 +303,13 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   uint32_t fixedWidthColumnCount_ = 0;
 
+  //  binary columns
   std::vector<uint32_t> binaryColumnIndices_;
 
-  // fixed columns + binary columns
+  // fixed columns
   std::vector<uint32_t> simpleColumnIndices_;
 
-  // struct、map、list、large list columns
+  // struct、map、list columns
   std::vector<uint32_t> complexColumnIndices_;
 
   // partid, value is reducer batch's offset, output rb rownum < 64k
@@ -321,9 +329,16 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   std::vector<bool> inputHasNull_;
 
-  std::vector<std::vector<facebook::velox::VectorSerializer>> complexTypeData_;
-  // colId
-  std::vector<uint64_t> complexTypeFlushSize_;
+  // pid
+  std::vector<std::unique_ptr<facebook::velox::VectorSerializer>> complexTypeData_;
+  std::vector<std::shared_ptr<arrow::ResizableBuffer>> complexTypeFlushBuffer_;
+  std::shared_ptr<const facebook::velox::RowType> complexWriteType_;
+
+  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
+  std::unique_ptr<facebook::velox::StreamArena> arena_;
+
+  std::unique_ptr<facebook::velox::serializer::presto::PrestoVectorSerde> serde_ =
+      std::make_unique<facebook::velox::serializer::presto::PrestoVectorSerde>();
 
 }; // class VeloxShuffleWriter
 
