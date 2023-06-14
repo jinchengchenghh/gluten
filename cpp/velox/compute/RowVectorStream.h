@@ -25,10 +25,9 @@ namespace gluten {
 class RowVectorStream final : public facebook::velox::RowVectorStream {
  public:
   explicit RowVectorStream(
-      std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
       std::shared_ptr<ResultIterator> iterator,
       const facebook::velox::RowTypePtr& outputType)
-      : pool_(pool), iterator_(iterator), outputType_(outputType) {}
+      : iterator_(iterator), outputType_(outputType) {}
 
   bool hasNext() {
     return iterator_->hasNext();
@@ -42,7 +41,6 @@ class RowVectorStream final : public facebook::velox::RowVectorStream {
   }
 
  private:
-  std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
   std::shared_ptr<ResultIterator> iterator_;
   const facebook::velox::RowTypePtr outputType_;
 };
