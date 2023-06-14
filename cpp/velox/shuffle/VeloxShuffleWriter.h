@@ -25,6 +25,7 @@
 #include "velox/type/Type.h"
 #include "velox/vector/ComplexVector.h"
 #include "velox/vector/FlatVector.h"
+#include "velox/vector/VectorStream.h"
 
 #include <arrow/filesystem/filesystem.h>
 #include <arrow/filesystem/localfs.h>
@@ -319,6 +320,11 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   std::vector<std::vector<BinaryBuf>> partitionBinaryAddrs_;
 
   std::vector<bool> inputHasNull_;
+
+  std::vector<std::vector<facebook::velox::VectorSerializer>> complexTypeData_;
+  // colId
+  std::vector<uint64_t> complexTypeFlushSize_;
+
 }; // class VeloxShuffleWriter
 
 } // namespace gluten

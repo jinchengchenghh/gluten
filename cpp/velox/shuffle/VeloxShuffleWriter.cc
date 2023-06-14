@@ -751,11 +751,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           break;
         case arrow::StructType::type_id:
         case arrow::MapType::type_id:
-        case arrow::LargeListType::type_id:
         case arrow::ListType::type_id:
           complexColumnIndices_.push_back(i);
-          break;
-        case arrow::NullType::type_id:
           break;
         default:
           simpleColumnIndices_.push_back(i);
@@ -772,6 +769,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     binaryArrayEmpiricalSize_.resize(binaryColumnIndices_.size(), 0);
 
     inputHasNull_.resize(simpleColumnIndices_.size(), false);
+    complexTypeFlushSize_.resize(complexColumnIndices_.size(), 0);
 
     return arrow::Status::OK();
   }
@@ -869,7 +867,6 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         case arrow::StructType::type_id:
         case arrow::MapType::type_id:
         case arrow::ListType::type_id:
-        case arrow::NullType::type_id:
           throw GlutenException("Not support this type " + arrowColumnTypes_[i]->name());
         default: {
           std::shared_ptr<arrow::Buffer> valueBuffer;
@@ -991,7 +988,6 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         case arrow::StructType::type_id:
         case arrow::MapType::type_id:
         case arrow::ListType::type_id:
-        case arrow::NullType::type_id:
           throw GlutenException("Not support this type " + arrowColumnTypes_[i]->name());
         default: {
           auto buffers = partitionBuffers_[fixedWidthIdx][partitionId];
