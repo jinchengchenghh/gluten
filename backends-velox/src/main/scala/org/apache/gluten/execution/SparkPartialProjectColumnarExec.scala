@@ -27,23 +27,22 @@ import org.apache.gluten.utils.Iterators
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, NamedExpression, SortOrder, UnsafeProjection}
-import org.apache.spark.sql.execution.{ExplainUtils, OrderPreservingUnaryExecNode, PartitioningPreservingUnaryExecNode, ProjectExec, SparkPlan}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, InputFileName, NamedExpression, SortOrder, UnsafeProjection}
+import org.apache.spark.sql.execution.{ExplainUtils, OrderPreservingNodeShim, OrderPreservingUnaryExecNode, PartitioningPreservingUnaryExecNode, ProjectExec, SparkPlan}
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
 import scala.collection.mutable.ListBuffer
 
 case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPlan)
   extends GlutenPlan
   with PartitioningPreservingUnaryExecNode
-  with OrderPreservingUnaryExecNode {
+  with OrderPreservingNodeShim {
 
   private val supported: ListBuffer[NamedExpression] = ListBuffer()
   private val unSupported: ListBuffer[NamedExpression] = ListBuffer()
   private val unSupportedIndexInOriginal: ListBuffer[Int] = ListBuffer()
   private val unSupportedAttribute = ListBuffer[AttributeReference]()
   private val expressionsMap = ExpressionMappings.expressionsMap
-  private val ignoreFunctions = { "input_file_name" }
+  private val ignoreFunctions = { InputFileName.getClass.getSimpleName }
   original.projectList.zipWithIndex.foreach(
     p => {
       if (isSupported(p._1)) {
@@ -76,9 +75,11 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
   // register in native, not urgent, user function always does not exist in expression map
   private def isSupported(expr: Expression): Boolean = {
     val (substraitName, _) = ExpressionConverter.getSubstraitName(expr, expressionsMap)
-    substraitName != null || (substraitName == null && ignoreFunctions.contains(substraitName)) &&
+    (substraitName != null ||
+      (substraitName == null && ignoreFunctions.contains(expr.getClass.getSimpleName))) &&
     expr.children.forall(isSupported)
   }
+
   private def getUnsupportedReference(
       expr: Expression,
       unSupportedChildOutput: ListBuffer[AttributeReference]): Unit = expr match {
