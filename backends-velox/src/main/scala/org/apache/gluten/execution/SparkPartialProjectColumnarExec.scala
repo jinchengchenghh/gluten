@@ -28,7 +28,7 @@ import org.apache.gluten.utils.Iterators
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, InputFileName, NamedExpression, SortOrder, UnsafeProjection}
-import org.apache.spark.sql.execution.{ExplainUtils, OrderPreservingNodeShim, OrderPreservingUnaryExecNode, PartitioningPreservingUnaryExecNode, ProjectExec, SparkPlan}
+import org.apache.spark.sql.execution.{ExplainUtils, OrderPreservingNodeShim, PartitioningPreservingUnaryExecNode, ProjectExec, SparkPlan}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.collection.mutable.ListBuffer
