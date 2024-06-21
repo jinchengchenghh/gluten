@@ -343,6 +343,23 @@ public class ColumnarBatches {
     return ColumnarBatchJniWrapper.forRuntime(ctxs[0]).compose(handles);
   }
 
+  // If cb1ColumnIndices is different with cb1 columns, ignore the front column in cb1
+  public static long composeWithReorder(
+      ColumnarBatch cb1, int[] cb1ColumnIndices, ColumnarBatch cb2) {
+    Runtime cb1Runtime = getRuntime(cb1);
+    Preconditions.checkState(cb1Runtime.equals(getRuntime(cb2)));
+
+    return ColumnarBatchJniWrapper.forRuntime(cb1Runtime)
+        .reorder(getNativeHandle(cb1), cb1ColumnIndices, getNativeHandle(cb2));
+  }
+
+  public static String toString(ColumnarBatch batch, int start, int length) {
+    Runtime runtime = getRuntime(batch);
+
+    return ColumnarBatchJniWrapper.forRuntime(runtime)
+        .toString(getNativeHandle(batch), start, length);
+  }
+
   public static ColumnarBatch create(Runtime runtime, long nativeHandle) {
     final IndicatorVector iv = new IndicatorVector(runtime, nativeHandle);
     int numColumns = Math.toIntExact(iv.getNumColumns());

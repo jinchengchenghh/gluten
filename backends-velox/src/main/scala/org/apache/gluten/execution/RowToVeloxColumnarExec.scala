@@ -107,6 +107,25 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
 }
 
 object RowToVeloxColumnarExec {
+
+  def toColumnarBatchIterator(
+      in: Iterator[InternalRow],
+      schema: StructType,
+      columnBatchSize: Int,
+      runtime: org.apache.gluten.exec.Runtime): Iterator[ColumnarBatch] = {
+    val numInputRows = new SQLMetric("numInputRows")
+    val numOutputBatches = new SQLMetric("numOutputBatches")
+    val convertTime = new SQLMetric("convertTime")
+    RowToVeloxColumnarExec.toColumnarBatchIterator(
+      in,
+      schema,
+      numInputRows,
+      numOutputBatches,
+      convertTime,
+      columnBatchSize,
+      runtime)
+  }
+
   def toColumnarBatchIterator(
       it: Iterator[InternalRow],
       schema: StructType,
@@ -114,6 +133,24 @@ object RowToVeloxColumnarExec {
       numOutputBatches: SQLMetric,
       convertTime: SQLMetric,
       columnBatchSize: Int): Iterator[ColumnarBatch] = {
+    toColumnarBatchIterator(
+      it,
+      schema,
+      numInputRows,
+      numOutputBatches,
+      convertTime,
+      columnBatchSize,
+      Runtimes.contextInstance())
+  }
+
+  def toColumnarBatchIterator(
+      it: Iterator[InternalRow],
+      schema: StructType,
+      numInputRows: SQLMetric,
+      numOutputBatches: SQLMetric,
+      convertTime: SQLMetric,
+      columnBatchSize: Int,
+      runtime: org.apache.gluten.exec.Runtime): Iterator[ColumnarBatch] = {
     if (it.isEmpty) {
       return Iterator.empty
     }
@@ -204,7 +241,7 @@ object RowToVeloxColumnarExec {
         try {
           val handle = jniWrapper
             .nativeConvertRowToColumnar(r2cHandle, rowLength.toArray, arrowBuf.memoryAddress())
-          ColumnarBatches.create(Runtimes.contextInstance(), handle)
+          ColumnarBatches.create(runtime, handle)
         } finally {
           arrowBuf.close()
           arrowBuf = null

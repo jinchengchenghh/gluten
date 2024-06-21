@@ -114,6 +114,18 @@ case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
   }
 }
 
+case class OffloadProject() extends OffloadSingleNode with LogLevelUtil {
+  override def offload(plan: SparkPlan): SparkPlan = plan match {
+    case p: ProjectExec if TransformHints.isNotTransformable(p) =>
+      val partialProject = BackendsApiManager.getSparkPlanExecApiInstance
+        .genSparkPartialProjectColumnarExec(p, p.child)
+      if (partialProject != null && partialProject.doValidate().isValid) {
+        partialProject
+      } else p
+    case other => other
+  }
+}
+
 // Join transformation.
 case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
 

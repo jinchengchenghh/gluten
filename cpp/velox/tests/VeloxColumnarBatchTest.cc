@@ -61,4 +61,31 @@ TEST_F(VeloxColumnarBatchTest, flattenTruncatedVector) {
   auto batchOfMap = std::make_shared<VeloxColumnarBatch>(inputOfMap);
   ASSERT_NO_THROW(batchOfMap->getFlattenedRowVector());
 }
+
+TEST_F(VeloxColumnarBatchTest, fromCompositeReorderColumnarBatch) {
+  std::vector<VectorPtr> children1 = {
+      makeNullableFlatVector<int8_t>({1, 2, 3, std::nullopt, 4}),
+      makeNullableFlatVector<int8_t>({1, -1, std::nullopt, std::nullopt, -2}),
+      makeNullableFlatVector<int32_t>({1, 2, 3, 4, std::nullopt})};
+
+  std::vector<VectorPtr> children2 = {
+      makeNullableFlatVector<int8_t>({10, 20, 30, std::nullopt, 40}),
+      makeNullableFlatVector<int8_t>({12, -1, std::nullopt, std::nullopt, -2}),
+      makeNullableFlatVector<int32_t>({13, 2, 3, 4, std::nullopt})};
+
+  auto batch1 = std::make_shared<VeloxColumnarBatch>(makeRowVector(children1));
+  auto batch2 = std::make_shared<VeloxColumnarBatch>(makeRowVector(children2));
+  std::vector<int32_t> cb1Indices = {1, 4};
+  auto reorderBatch = CompositeReorderColumnarBatch::create(batch1, cb1Indices, batch2);
+  auto vector = VeloxColumnarBatch::from(pool(), reorderBatch)->getRowVector();
+  std::cout << "vector content " << vector->toString(0, 10) << std::endl;
+  std::vector<VectorPtr> childrenExpected = {
+      makeNullableFlatVector<int8_t>({10, 20, 30, std::nullopt, 40}),
+      makeNullableFlatVector<int8_t>({1, -1, std::nullopt, std::nullopt, -2}),
+      makeNullableFlatVector<int8_t>({12, -1, std::nullopt, std::nullopt, -2}),
+      makeNullableFlatVector<int32_t>({13, 2, 3, 4, std::nullopt}),
+      makeNullableFlatVector<int32_t>({1, 2, 3, 4, std::nullopt})};
+  auto expectedVector = makeRowVector(childrenExpected);
+  test::assertEqualVectors(vector, expectedVector);
+}
 } // namespace gluten

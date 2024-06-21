@@ -52,6 +52,10 @@ class ColumnarBatch {
   // Serializes one single row to byte array that can be accessed as Spark-compatible unsafe row.
   virtual std::vector<char> toUnsafeRow(int32_t rowId) const;
 
+  virtual std::string toString(int32_t start, int32_t length) const {
+    throw GlutenException("Not implement");
+  }
+
   friend std::ostream& operator<<(std::ostream& os, const ColumnarBatch& columnarBatch);
 
  private:
@@ -133,6 +137,56 @@ class CompositeColumnarBatch final : public ColumnarBatch {
   void ensureUnderlyingBatchCreated();
 
   std::vector<std::shared_ptr<ColumnarBatch>> batches_;
+  std::shared_ptr<ColumnarBatch> compositeBatch_ = nullptr;
+};
+
+/**
+ * A columnar batch implementations that creates a view on top of a couple of child batches.
+ * Fields in the child batches will be reorganized in the parent batch.
+ */
+class CompositeReorderColumnarBatch final : public ColumnarBatch {
+ public:
+  static std::shared_ptr<ColumnarBatch> create(
+      std::shared_ptr<ColumnarBatch> batch1,
+      std::vector<int32_t> cb1ColumnIndices,
+      std::shared_ptr<ColumnarBatch> batch2);
+
+  std::string getType() const override;
+
+  int64_t numBytes() override;
+
+  std::shared_ptr<ArrowArray> exportArrowArray() override;
+
+  std::shared_ptr<ArrowSchema> exportArrowSchema() override;
+
+  const std::shared_ptr<ColumnarBatch> getBatch1() const {
+    return batch1_;
+  }
+
+  const std::shared_ptr<ColumnarBatch> getBatch2() const {
+    return batch2_;
+  }
+
+  const std::vector<int32_t> getBatch1ColumnIndices() const {
+    return cb1ColumnIndices_;
+  }
+
+  std::vector<char> toUnsafeRow(int32_t rowId) const override;
+
+ private:
+  explicit CompositeReorderColumnarBatch(
+      int32_t numColumns,
+      int32_t numRows,
+      std::shared_ptr<ColumnarBatch> batch1,
+      std::vector<int32_t> cb1ColumnIndices,
+      std::shared_ptr<ColumnarBatch> batch2);
+
+  // We use ArrowColumnarBatch as the way to compose columnar batches
+  void ensureUnderlyingBatchCreated();
+
+  std::shared_ptr<ColumnarBatch> batch1_;
+  std::shared_ptr<ColumnarBatch> batch2_;
+  std::vector<int32_t> cb1ColumnIndices_;
   std::shared_ptr<ColumnarBatch> compositeBatch_ = nullptr;
 };
 

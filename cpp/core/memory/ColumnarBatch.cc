@@ -213,4 +213,66 @@ void CompositeColumnarBatch::ensureUnderlyingBatchCreated() {
       arrow::RecordBatch::Make(std::make_shared<arrow::Schema>(fields), numRows(), arrays));
 }
 
+std::shared_ptr<ColumnarBatch> CompositeReorderColumnarBatch::create(
+    std::shared_ptr<ColumnarBatch> batch1,
+    std::vector<int32_t> cb1ColumnIndices,
+    std::shared_ptr<ColumnarBatch> batch2) {
+  int32_t numRows = batch1->numRows();
+  if (batch2->numRows() != numRows) {
+    throw GlutenException(
+        "Mismatched row counts among the input batches during creating CompositeReorderColumnarBatch");
+  }
+
+  GLUTEN_CHECK(
+      batch1->numColumns() >= cb1ColumnIndices.size(),
+      "Number column of batch1 should be more than the number of its index");
+
+  int32_t numColumns = cb1ColumnIndices.size() + batch2->numColumns();
+  return std::shared_ptr<ColumnarBatch>(new CompositeReorderColumnarBatch(
+      numColumns, numRows, std::move(batch1), std::move(cb1ColumnIndices), std::move(batch2)));
+}
+
+std::string CompositeReorderColumnarBatch::getType() const {
+  return "composite_reorder";
+}
+
+int64_t CompositeReorderColumnarBatch::numBytes() {
+  if (compositeBatch_) {
+    return compositeBatch_->numBytes();
+  } else {
+    int64_t numBytes = batch1_->numBytes() + batch2_->numBytes();
+    return numBytes;
+  }
+}
+
+std::shared_ptr<ArrowArray> CompositeReorderColumnarBatch::exportArrowArray() {
+  ensureUnderlyingBatchCreated();
+  return compositeBatch_->exportArrowArray();
+}
+
+std::shared_ptr<ArrowSchema> CompositeReorderColumnarBatch::exportArrowSchema() {
+  ensureUnderlyingBatchCreated();
+  return compositeBatch_->exportArrowSchema();
+}
+
+std::vector<char> CompositeReorderColumnarBatch::toUnsafeRow(int32_t rowId) const {
+  throw gluten::GlutenException("#toUnsafeRow of CompositeReorderColumnarBatch is not implemented");
+}
+
+CompositeReorderColumnarBatch::CompositeReorderColumnarBatch(
+    int32_t numColumns,
+    int32_t numRows,
+    std::shared_ptr<ColumnarBatch> batch1,
+    std::vector<int32_t> cb1ColumnIndices,
+    std::shared_ptr<ColumnarBatch> batch2)
+    : ColumnarBatch(numColumns, numRows) {
+  this->batch1_ = std::move(batch1);
+  this->batch2_ = std::move(batch2);
+  this->cb1ColumnIndices_ = std::move(cb1ColumnIndices);
+}
+
+void CompositeReorderColumnarBatch::ensureUnderlyingBatchCreated() {
+  throw gluten::GlutenException("#ensureUnderlyingBatchCreated of CompositeReorderColumnarBatch is not implemented");
+}
+
 } // namespace gluten
