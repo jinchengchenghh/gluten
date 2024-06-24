@@ -76,7 +76,7 @@ TEST_F(VeloxColumnarBatchTest, fromCompositeReorderColumnarBatch) {
   auto batch1 = std::make_shared<VeloxColumnarBatch>(makeRowVector(children1));
   auto batch2 = std::make_shared<VeloxColumnarBatch>(makeRowVector(children2));
   std::vector<int32_t> cb1Indices = {1, 4};
-  auto reorderBatch = CompositeReorderColumnarBatch::create(batch1, cb1Indices, batch2);
+  auto reorderBatch = CompositeReorderColumnarBatch::create(batch1, cb1Indices, batch2, 0);
   auto vector = VeloxColumnarBatch::from(pool(), reorderBatch)->getRowVector();
   std::cout << "vector content " << vector->toString(0, 10) << std::endl;
   std::vector<VectorPtr> childrenExpected = {

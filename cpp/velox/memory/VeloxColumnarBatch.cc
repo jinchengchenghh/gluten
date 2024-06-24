@@ -123,8 +123,13 @@ std::shared_ptr<VeloxColumnarBatch> VeloxColumnarBatch::from(
     auto composite = std::dynamic_pointer_cast<gluten::CompositeReorderColumnarBatch>(cb);
     auto vector1 = from(pool, composite->getBatch1())->getRowVector();
     auto vector2 = from(pool, composite->getBatch2())->getRowVector();
-    std::vector<std::string> childNames = facebook::velox::asRowType(vector2->type())->names();
-    std::vector<VectorPtr> childVectors = vector2->children();
+    int32_t cb2IgnoreEndColumns = composite->getBatch2IgnoreEndColumns();
+    auto& vector2Names = facebook::velox::asRowType(vector2->type())->names();
+    auto& vector2Children = vector2->children();
+    std::vector<std::string> childNames(
+        vector2Names.begin(), vector2Names.begin() + (vector2Names.size() - cb2IgnoreEndColumns));
+    std::vector<VectorPtr> childVectors(
+        vector2Children.begin(), vector2Children.begin() + (vector2Children.size() - cb2IgnoreEndColumns));
     auto& batch1Indices = composite->getBatch1ColumnIndices();
     int32_t ignoreFrontColumn = vector1->childrenSize() - batch1Indices.size();
     auto& colNames1 = facebook::velox::asRowType(vector1->type())->names();

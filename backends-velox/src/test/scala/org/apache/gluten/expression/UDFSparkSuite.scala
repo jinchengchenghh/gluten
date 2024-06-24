@@ -102,7 +102,11 @@ class UDFSparkSuite extends WholeStageTransformerSuite {
   }
 
   test("test nondeterministic function input_file_name") {
-    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
-                         | from lineitem limit 100""".stripMargin) { _ => }
+    val df = spark.sql("""SELECT input_file_name(), l_orderkey
+                         | from lineitem limit 100""".stripMargin)
+    df.collect()
+    assert(
+      !df.queryExecution.executedPlan
+        .exists(p => p.isInstanceOf[SparkPartialProjectColumnarExec]))
   }
 }

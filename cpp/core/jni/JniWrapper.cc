@@ -649,7 +649,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWra
     jobject wrapper,
     jlong cb1,
     jintArray jcb1Indices,
-    jlong cb2) {
+    jlong cb2,
+    jint cb2IgnoreEndColumns) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
   auto safeArray = gluten::getIntArrayElementsSafe(env, jcb1Indices);
@@ -661,7 +662,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWra
   }
   auto batch1 = ctx->objectStore()->retrieve<ColumnarBatch>(cb1);
   auto batch2 = ctx->objectStore()->retrieve<ColumnarBatch>(cb2);
-  auto newBatch = CompositeReorderColumnarBatch::create(std::move(batch1), std::move(cb1Indices), std::move(batch2));
+  auto newBatch = CompositeReorderColumnarBatch::create(std::move(batch1), std::move(cb1Indices), std::move(batch2), cb2IgnoreEndColumns);
   return ctx->objectStore()->save(newBatch);
   JNI_METHOD_END(kInvalidResourceHandle)
 }

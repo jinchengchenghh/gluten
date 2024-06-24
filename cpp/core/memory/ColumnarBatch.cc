@@ -216,7 +216,8 @@ void CompositeColumnarBatch::ensureUnderlyingBatchCreated() {
 std::shared_ptr<ColumnarBatch> CompositeReorderColumnarBatch::create(
     std::shared_ptr<ColumnarBatch> batch1,
     std::vector<int32_t> cb1ColumnIndices,
-    std::shared_ptr<ColumnarBatch> batch2) {
+    std::shared_ptr<ColumnarBatch> batch2,
+    int32_t cb2IgnoreEndColumns) {
   int32_t numRows = batch1->numRows();
   if (batch2->numRows() != numRows) {
     throw GlutenException(
@@ -229,7 +230,7 @@ std::shared_ptr<ColumnarBatch> CompositeReorderColumnarBatch::create(
 
   int32_t numColumns = cb1ColumnIndices.size() + batch2->numColumns();
   return std::shared_ptr<ColumnarBatch>(new CompositeReorderColumnarBatch(
-      numColumns, numRows, std::move(batch1), std::move(cb1ColumnIndices), std::move(batch2)));
+      numColumns, numRows, std::move(batch1), std::move(cb1ColumnIndices), std::move(batch2), cb2IgnoreEndColumns));
 }
 
 std::string CompositeReorderColumnarBatch::getType() const {
@@ -264,11 +265,13 @@ CompositeReorderColumnarBatch::CompositeReorderColumnarBatch(
     int32_t numRows,
     std::shared_ptr<ColumnarBatch> batch1,
     std::vector<int32_t> cb1ColumnIndices,
-    std::shared_ptr<ColumnarBatch> batch2)
+    std::shared_ptr<ColumnarBatch> batch2,
+    int32_t cb2IgnoreEndColumns)
     : ColumnarBatch(numColumns, numRows) {
   this->batch1_ = std::move(batch1);
   this->batch2_ = std::move(batch2);
   this->cb1ColumnIndices_ = std::move(cb1ColumnIndices);
+  this->cb2IgnoreEndColumns_ = cb2IgnoreEndColumns;
 }
 
 void CompositeReorderColumnarBatch::ensureUnderlyingBatchCreated() {

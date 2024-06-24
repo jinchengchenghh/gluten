@@ -345,12 +345,12 @@ public class ColumnarBatches {
 
   // If cb1ColumnIndices is different with cb1 columns, ignore the front column in cb1
   public static long composeWithReorder(
-      ColumnarBatch cb1, int[] cb1ColumnIndices, ColumnarBatch cb2) {
+      ColumnarBatch cb1, int[] cb1ColumnIndices, ColumnarBatch cb2, int cb2IgnoreEndColumns) {
     Runtime cb1Runtime = getRuntime(cb1);
     Preconditions.checkState(cb1Runtime.equals(getRuntime(cb2)));
 
     return ColumnarBatchJniWrapper.forRuntime(cb1Runtime)
-        .reorder(getNativeHandle(cb1), cb1ColumnIndices, getNativeHandle(cb2));
+        .reorder(getNativeHandle(cb1), cb1ColumnIndices, getNativeHandle(cb2), cb2IgnoreEndColumns);
   }
 
   public static String toString(ColumnarBatch batch, int start, int length) {

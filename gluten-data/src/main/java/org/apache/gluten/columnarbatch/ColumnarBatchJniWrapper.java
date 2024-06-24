@@ -62,9 +62,10 @@ public class ColumnarBatchJniWrapper implements RuntimeAware {
    * @param cb1 column batch
    * @param cb1ColumnIndices the index in result columnar batch
    * @param cb2 column batch
+   * @param cb2IgnoreEndColumns ignore the end columns in batch2
    * @return
    */
-  public native long reorder(long cb1, int[] cb1ColumnIndices, long cb2);
+  public native long reorder(long cb1, int[] cb1ColumnIndices, long cb2, int cb2IgnoreEndColumns);
 
   public native String toString(long handle, int start, int length);
 

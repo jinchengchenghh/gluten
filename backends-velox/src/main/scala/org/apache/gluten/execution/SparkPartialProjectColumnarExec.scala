@@ -43,7 +43,7 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
   private val unSupported: ListBuffer[NamedExpression] = ListBuffer()
   private val unSupportedIndexInOriginal: ListBuffer[Int] = ListBuffer()
   private val unSupportedAttribute = ListBuffer[AttributeReference]()
-  // May add the extra attribute from unsupported
+  // May add the extra attribute from unsupported to ProjectTransformer
   private val extraSupported: ListBuffer[NamedExpression] = ListBuffer()
   private val expressionsMap = ExpressionMappings.expressionsMap
   private val debug = GlutenConfig.getConf.debug
@@ -151,8 +151,14 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
             } else {
               getUnsupportedBatchIterator(batch, batchSize).map {
                 b =>
+//                  print("batch 1" + ColumnarBatches.toString(b, 0, 20) + "\n")
+//                  print("batch 2" + ColumnarBatches.toString(batch, 0, 20) + "\n")
                   val handle =
-                    ColumnarBatches.composeWithReorder(b, unSupportedIndexInOriginal.toArray, batch)
+                    ColumnarBatches.composeWithReorder(
+                      b,
+                      unSupportedIndexInOriginal.toArray,
+                      batch,
+                      extraSupported.size)
                   b.close()
                   ColumnarBatches.create(Runtimes.contextInstance(), handle)
               }

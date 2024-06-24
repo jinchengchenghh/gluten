@@ -149,7 +149,8 @@ class CompositeReorderColumnarBatch final : public ColumnarBatch {
   static std::shared_ptr<ColumnarBatch> create(
       std::shared_ptr<ColumnarBatch> batch1,
       std::vector<int32_t> cb1ColumnIndices,
-      std::shared_ptr<ColumnarBatch> batch2);
+      std::shared_ptr<ColumnarBatch> batch2,
+      int32_t cb2IgnoreEndColumns);
 
   std::string getType() const override;
 
@@ -171,6 +172,10 @@ class CompositeReorderColumnarBatch final : public ColumnarBatch {
     return cb1ColumnIndices_;
   }
 
+  int32_t getBatch2IgnoreEndColumns() const {
+    return cb2IgnoreEndColumns_;
+  }
+
   std::vector<char> toUnsafeRow(int32_t rowId) const override;
 
  private:
@@ -179,7 +184,8 @@ class CompositeReorderColumnarBatch final : public ColumnarBatch {
       int32_t numRows,
       std::shared_ptr<ColumnarBatch> batch1,
       std::vector<int32_t> cb1ColumnIndices,
-      std::shared_ptr<ColumnarBatch> batch2);
+      std::shared_ptr<ColumnarBatch> batch2,
+      int32_t cb2IgnoreEndColumns);
 
   // We use ArrowColumnarBatch as the way to compose columnar batches
   void ensureUnderlyingBatchCreated();
@@ -187,6 +193,7 @@ class CompositeReorderColumnarBatch final : public ColumnarBatch {
   std::shared_ptr<ColumnarBatch> batch1_;
   std::shared_ptr<ColumnarBatch> batch2_;
   std::vector<int32_t> cb1ColumnIndices_;
+  int32_t cb2IgnoreEndColumns_;
   std::shared_ptr<ColumnarBatch> compositeBatch_ = nullptr;
 };
 
