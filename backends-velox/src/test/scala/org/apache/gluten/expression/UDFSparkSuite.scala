@@ -106,7 +106,8 @@ class UDFSparkSuite extends WholeStageTransformerSuite {
                          | from lineitem limit 100""".stripMargin)
     df.collect()
     assert(
-      !df.queryExecution.executedPlan
-        .exists(p => p.isInstanceOf[SparkPartialProjectColumnarExec]))
+      df.queryExecution.executedPlan
+        .find(p => p.isInstanceOf[SparkPartialProjectColumnarExec])
+        .isEmpty)
   }
 }

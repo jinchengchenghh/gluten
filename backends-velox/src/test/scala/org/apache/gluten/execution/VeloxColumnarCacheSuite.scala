@@ -198,7 +198,7 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
             tableCache.get.asInstanceOf[InMemoryTableScanExec].relation.cachedPlan
           assert(find(cachedPlan) {
             _.isInstanceOf[ProjectExecTransformer]
-          }.isDefined)
+          }.isEmpty)
       }
     }
   }

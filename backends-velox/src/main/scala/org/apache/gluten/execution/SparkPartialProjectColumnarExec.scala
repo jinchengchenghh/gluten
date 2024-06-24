@@ -22,6 +22,8 @@ import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.exec.Runtimes
 import org.apache.gluten.expression.{ExpressionConverter, ExpressionMappings}
 import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
+import org.apache.gluten.extension.columnar.validator.Validator.Passed
+import org.apache.gluten.extension.columnar.validator.Validators.FallbackComplexExpressions
 import org.apache.gluten.memory.nmm.NativeMemoryManagers
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.Iterators
@@ -132,8 +134,20 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
         s"Project fallback because output is ${validationResult.reason.getOrElse("")}")
     } else if (supported.isEmpty) {
       ValidationResult.notOk(s"All expressions in project list are not supported")
+    } else if (unSupportedIndexInOriginal.isEmpty) {
+      ValidationResult.notOk("No expression to fallback")
+    } else if (isComplexExpression()) {
+      ValidationResult.notOk("Fallback by complex expression")
     } else {
       ValidationResult.ok
+    }
+  }
+
+  private def isComplexExpression(): Boolean = {
+    new FallbackComplexExpressions(GlutenConfig.getConf.fallbackExpressionsThreshold)
+      .validate(original) match {
+      case Passed => false
+      case _ => true
     }
   }
 
@@ -153,14 +167,20 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
                 b =>
 //                  print("batch 1" + ColumnarBatches.toString(b, 0, 20) + "\n")
 //                  print("batch 2" + ColumnarBatches.toString(batch, 0, 20) + "\n")
-                  val handle =
-                    ColumnarBatches.composeWithReorder(
+                  val ignoreBatch2EndCols = extraSupported.size
+                  if (b.numCols() != 0) {
+                    val handle = ColumnarBatches.composeWithReorder(
                       b,
                       unSupportedIndexInOriginal.toArray,
                       batch,
-                      extraSupported.size)
-                  b.close()
-                  ColumnarBatches.create(Runtimes.contextInstance(), handle)
+                      ignoreBatch2EndCols)
+                    b.close()
+                    ColumnarBatches.create(Runtimes.contextInstance(), handle)
+                  } else {
+                    b.close()
+                    val colIndex = Array.range(0, batch.numCols() - ignoreBatch2EndCols)
+                    selectColumnarBatch(batch, colIndex)
+                  }
               }
             }
           }
