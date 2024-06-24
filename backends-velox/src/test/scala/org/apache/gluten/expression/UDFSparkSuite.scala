@@ -89,7 +89,7 @@ class UDFSparkSuite extends WholeStageTransformerSuite {
   }
 
   test("test plus_one with many columns in project") {
-    runQueryAndCompare("SELECT floor(cast(l_orderkey as long)), hash(l_partkey) from lineitem") {
+    runQueryAndCompare("SELECT plus_one(cast(l_orderkey as long)), hash(l_partkey) from lineitem") {
       checkGlutenOperatorMatch[SparkPartialProjectColumnarExec]
     }
   }
@@ -101,11 +101,8 @@ class UDFSparkSuite extends WholeStageTransformerSuite {
     }
   }
 
-  // Wait to fix, may don't get file name in Spark
-  ignore("test function input_file_name") {
+  test("test nondeterministic function input_file_name") {
     runQueryAndCompare("""SELECT input_file_name(), l_orderkey
-                         | from lineitem limit 100""".stripMargin) {
-      checkGlutenOperatorMatch[SparkPartialProjectColumnarExec]
-    }
+                         | from lineitem limit 100""".stripMargin) { _ => }
   }
 }

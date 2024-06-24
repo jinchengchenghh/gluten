@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.columnarbatch.{ColumnarBatches, ColumnarBatchJniWrapper}
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.exec.Runtimes
@@ -27,23 +28,25 @@ import org.apache.gluten.utils.Iterators
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, InputFileName, NamedExpression, SortOrder, UnsafeProjection}
-import org.apache.spark.sql.execution.{ExplainUtils, OrderPreservingNodeShim, PartitioningPreservingUnaryExecNode, ProjectExec, SparkPlan}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, NamedExpression, Nondeterministic, SortOrder, UnsafeProjection}
+import org.apache.spark.sql.execution.{ExplainUtils, OrderPreservingNodeShim, PartitioningPreservingNodeShim, ProjectExec, SparkPlan}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.collection.mutable.ListBuffer
 
 case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPlan)
   extends GlutenPlan
-  with PartitioningPreservingUnaryExecNode
+  with PartitioningPreservingNodeShim
   with OrderPreservingNodeShim {
 
   private val supported: ListBuffer[NamedExpression] = ListBuffer()
   private val unSupported: ListBuffer[NamedExpression] = ListBuffer()
   private val unSupportedIndexInOriginal: ListBuffer[Int] = ListBuffer()
   private val unSupportedAttribute = ListBuffer[AttributeReference]()
+  // May add the extra attribute from unsupported
+  private val extraSupported: ListBuffer[NamedExpression] = ListBuffer()
   private val expressionsMap = ExpressionMappings.expressionsMap
-  private val ignoreFunctions = { InputFileName.getClass.getSimpleName }
+  private val debug = GlutenConfig.getConf.debug
   original.projectList.zipWithIndex.foreach(
     p => {
       if (isSupported(p._1)) {
@@ -55,9 +58,10 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
     })
   unSupported.foreach(expr => getUnsupportedReference(expr, unSupportedAttribute))
   private val unSupportedIndexInSupported =
-    getUnsupportedIndexInSupported(unSupportedAttribute, supported)
-  val transformer = ProjectExecTransformer(supported, original.child)
-  print(this.verboseStringWithOperatorId())
+    getUnsupportedIndexInSupported(unSupportedAttribute, supported, extraSupported)
+  val transformer = ProjectExecTransformer(supported ++ extraSupported, original.child)
+
+  log.warn(this.verboseStringWithOperatorId())
 
   final override def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException(
@@ -76,9 +80,11 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
   // register in native, not urgent, user function always does not exist in expression map
   private def isSupported(expr: Expression): Boolean = {
     val (substraitName, _) = ExpressionConverter.getSubstraitName(expr, expressionsMap)
-    (substraitName != null ||
-      (substraitName == null && ignoreFunctions.contains(expr.getClass.getSimpleName))) &&
-    expr.children.forall(isSupported)
+    substraitName != null && expr.children.forall(isSupported)
+  }
+
+  private def validateExpression(expr: Expression): Boolean = {
+    !expr.isInstanceOf[Nondeterministic] && expr.children.forall(validateExpression)
   }
 
   private def getUnsupportedReference(
@@ -94,7 +100,8 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
 
   private def getUnsupportedIndexInSupported(
       unSupportedChildOutput: ListBuffer[AttributeReference],
-      supported: ListBuffer[NamedExpression]): Seq[Int] = {
+      supported: ListBuffer[NamedExpression],
+      extraSupported: ListBuffer[NamedExpression]): Seq[Int] = {
     val supportedIndex = ListBuffer[Int]()
     unSupportedChildOutput.foreach(
       u => {
@@ -102,7 +109,7 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
         // Add new expr to ProjectExecTransformer
         if (index < 0) {
           supportedIndex.append(supported.size)
-          supported.append(u)
+          extraSupported.append(u)
         } else {
           supportedIndex.append(index)
         }
@@ -111,6 +118,12 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
   }
 
   override protected def doValidateInternal(): ValidationResult = {
+    if (!GlutenConfig.getConf.enableColumnarPartialProject) {
+      return ValidationResult.notOk("Config disable this feature")
+    }
+    if (!original.projectList.forall(validateExpression(_))) {
+      return ValidationResult.notOk("Contains expression not supported")
+    }
     val validationResult = transformer.doValidate()
     if (!validationResult.isValid) {
       ValidationResult.notOk(s"Project fallback reason ${validationResult.reason.getOrElse("")}")
