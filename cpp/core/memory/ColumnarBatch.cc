@@ -228,7 +228,7 @@ std::shared_ptr<ColumnarBatch> CompositeReorderColumnarBatch::create(
       batch1->numColumns() >= cb1ColumnIndices.size(),
       "Number column of batch1 should be more than the number of its index");
 
-  int32_t numColumns = cb1ColumnIndices.size() + batch2->numColumns();
+  int32_t numColumns = cb1ColumnIndices.size() + batch2->numColumns() - cb2IgnoreEndColumns;
   return std::shared_ptr<ColumnarBatch>(new CompositeReorderColumnarBatch(
       numColumns, numRows, std::move(batch1), std::move(cb1ColumnIndices), std::move(batch2), cb2IgnoreEndColumns));
 }

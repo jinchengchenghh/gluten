@@ -662,7 +662,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWra
   }
   auto batch1 = ctx->objectStore()->retrieve<ColumnarBatch>(cb1);
   auto batch2 = ctx->objectStore()->retrieve<ColumnarBatch>(cb2);
-  auto newBatch = CompositeReorderColumnarBatch::create(std::move(batch1), std::move(cb1Indices), std::move(batch2), cb2IgnoreEndColumns);
+  auto newBatch = CompositeReorderColumnarBatch::create(
+      std::move(batch1), std::move(cb1Indices), std::move(batch2), cb2IgnoreEndColumns);
   return ctx->objectStore()->save(newBatch);
   JNI_METHOD_END(kInvalidResourceHandle)
 }

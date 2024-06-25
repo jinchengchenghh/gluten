@@ -34,6 +34,8 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference,
 import org.apache.spark.sql.execution.{ExplainUtils, OrderPreservingNodeShim, PartitioningPreservingNodeShim, ProjectExec, SparkPlan}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import java.lang.IllegalStateException
+
 import scala.collection.mutable.ListBuffer
 
 case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPlan)
@@ -175,7 +177,13 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
                       batch,
                       ignoreBatch2EndCols)
                     b.close()
-                    ColumnarBatches.create(Runtimes.contextInstance(), handle)
+                    val composite = ColumnarBatches.create(Runtimes.contextInstance(), handle)
+                    if (debug && composite.numCols() != output.length) {
+                      throw new IllegalStateException(
+                        s"Composite batch column number is ${composite.numCols()}, output size is ${output.length}, " +
+                          s"original batch column number is ${batch.numCols()}")
+                    }
+                    composite
                   } else {
                     b.close()
                     val colIndex = Array.range(0, batch.numCols() - ignoreBatch2EndCols)
