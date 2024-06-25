@@ -180,7 +180,8 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
                     val composite = ColumnarBatches.create(Runtimes.contextInstance(), handle)
                     if (debug && composite.numCols() != output.length) {
                       throw new IllegalStateException(
-                        s"Composite batch column number is ${composite.numCols()}, output size is ${output.length}, " +
+                        s"Composite batch column number is ${composite.numCols()}, " +
+                          s"output size is ${output.length}, " +
                           s"original batch column number is ${batch.numCols()}")
                     }
                     composite
