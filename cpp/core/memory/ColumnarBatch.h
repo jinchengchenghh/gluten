@@ -52,6 +52,10 @@ class ColumnarBatch {
   // Serializes one single row to byte array that can be accessed as Spark-compatible unsafe row.
   virtual std::vector<char> toUnsafeRow(int32_t rowId) const;
 
+  virtual std::string toString(int32_t start, int32_t length) const {
+    throw GlutenException("Not implement");
+  }
+
   friend std::ostream& operator<<(std::ostream& os, const ColumnarBatch& columnarBatch);
 
  private:

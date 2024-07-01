@@ -721,6 +721,20 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWra
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
+JNIEXPORT jstring JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWrapper_toString( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong handle,
+    jint start,
+    jint length) {
+  JNI_METHOD_START
+  auto ctx = gluten::getRuntime(env, wrapper);
+  GLUTEN_CHECK(length >= 0, "ColumnarBatch toString length should be greater or equal than 0");
+  auto batch = ctx->objectStore()->retrieve<ColumnarBatch>(handle);
+  return env->NewStringUTF(batch->toString(start, length).c_str());
+  JNI_METHOD_END(nullptr)
+}
+
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWrapper_getForEmptySchema( // NOLINT
     JNIEnv* env,
     jobject wrapper,

@@ -332,6 +332,11 @@ public class ColumnarBatches {
         .compose(handles);
   }
 
+  public static String toString(ColumnarBatch batch, int start, int length) {
+    return ColumnarBatchJniWrapper.create(Runtimes.contextInstance("ColumnarBatches#toString"))
+        .toString(getNativeHandle(batch), start, length);
+  }
+
   private static ColumnarBatch create(IndicatorVector iv) {
     int numColumns = Math.toIntExact(iv.getNumColumns());
     int numRows = Math.toIntExact(iv.getNumRows());

@@ -81,6 +81,31 @@ class VeloxDeltaSuite extends WholeStageTransformerSuite {
     }
   }
 
+  test("gluten delta: time travel") {
+    withTable("delta_tm") {
+      spark.sql(s"""
+                   |create table delta_tm (id int, name string) using delta
+                   |""".stripMargin)
+      spark.sql(s"""
+                   |insert into delta_tm values (1, "v1"), (2, "v2")
+                   |""".stripMargin)
+      spark.sql(s"""
+                   |insert into delta_tm values (3, "v3"), (4, "v4")
+                   |""".stripMargin)
+      val df1 = runQueryAndCompare("select * from delta_tm VERSION AS OF 1") { _ => }
+      checkLengthAndPlan(df1, 2)
+      checkAnswer(df1, Row(1, "v1") :: Row(2, "v2") :: Nil)
+      val df2 = runQueryAndCompare("select * from delta_tm VERSION AS OF 2") { _ => }
+      checkLengthAndPlan(df2, 4)
+      checkAnswer(df2, Row(1, "v1") :: Row(2, "v2") :: Row(3, "v3") :: Row(4, "v4") :: Nil)
+      val df3 = runQueryAndCompare("select name from delta_tm VERSION AS OF 2 where id = 2") {
+        _ =>
+      }
+      checkLengthAndPlan(df3, 1)
+      checkAnswer(df3, Row("v2") :: Nil)
+    }
+  }
+
   testWithSpecifiedSparkVersion("delta: time travel", Some("3.3")) {
     withTable("delta_tm") {
       spark.sql(s"""

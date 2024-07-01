@@ -50,6 +50,8 @@ public class ColumnarBatchJniWrapper implements RuntimeAware {
 
   public native long obtainOwnership(long batch);
 
+  public native String toString(long handle, int start, int length);
+
   public native void close(long batch);
 
   @Override
