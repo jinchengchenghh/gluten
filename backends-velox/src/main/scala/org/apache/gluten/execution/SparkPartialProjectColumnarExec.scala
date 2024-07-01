@@ -18,14 +18,13 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.columnarbatch.{ColumnarBatches, ColumnarBatchJniWrapper}
+import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exec.Runtimes
 import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
 import org.apache.gluten.extension.columnar.validator.Validator.Passed
 import org.apache.gluten.extension.columnar.validator.Validators.FallbackComplexExpressions
-import org.apache.gluten.memory.nmm.NativeMemoryManagers
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.gluten.utils.Iterators
+import org.apache.gluten.utils.iterator.Iterators
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -57,8 +56,7 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
   private val projectAttributes: ListBuffer[Attribute] = ListBuffer()
   private val projectIndexInChild: ListBuffer[Int] = ListBuffer()
   private var UDFAttrNotExists = false
-  private var hasComplexDataType = false
-  hasComplexDataType = replacedAliasUdf.forall(a => validateDataType(a.dataType))
+  private var hasComplexDataType = replacedAliasUdf.exists(a => !validateDataType(a.dataType))
   if (!hasComplexDataType) {
     getProjectIndexInChildOutput(replacedAliasUdf)
   }
@@ -179,7 +177,8 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
                   val compositeBatch = if (b.numCols() != 0) {
                     val handle = ColumnarBatches.compose(batch, b)
                     b.close()
-                    val composite = ColumnarBatches.create(Runtimes.contextInstance(), handle)
+                    val composite = ColumnarBatches
+                      .create(Runtimes.contextInstance(getClass.getSimpleName), handle)
                     composite
                   } else {
                     b.close()
@@ -218,28 +217,14 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
       batchSize: Int): Iterator[ColumnarBatch] = {
     // select part of child output and child data
     val proj = UnsafeProjection.create(replacedAliasUdf, projectAttributes)
-    val childData = selectColumnarBatch(childBatch, projectIndexInChild)
+    val childData = ColumnarBatches.select(childBatch, projectIndexInChild.toArray)
     val rows = VeloxColumnarToRowExec
       .toRowIterator(Iterator.single[ColumnarBatch](childData), projectAttributes)
       .map(proj)
     val schema =
       SparkShimLoader.getSparkShims.structFromAttributes(replacedAliasUdf.map(_.toAttribute))
     // TODO: Optimize to convert to columnar batch ignore some columns
-    RowToVeloxColumnarExec.toColumnarBatchIterator(
-      rows,
-      schema,
-      batchSize,
-      ColumnarBatches.getRuntime(childBatch))
-  }
-
-  private def selectColumnarBatch(cb: ColumnarBatch, indexes: Seq[Int]): ColumnarBatch = {
-    val handle = ColumnarBatchJniWrapper
-      .create()
-      .select(
-        NativeMemoryManagers.contextInstance(this.getClass.getSimpleName).getNativeInstanceHandle,
-        ColumnarBatches.getNativeHandle(cb),
-        indexes.toArray)
-    ColumnarBatches.create(ColumnarBatches.getRuntime(cb), handle)
+    RowToVeloxColumnarExec.toColumnarBatchIterator(rows, schema, batchSize)
   }
 
   override def verboseStringWithOperatorId(): String = {

@@ -90,7 +90,7 @@ class GlutenHiveUDFSuite
     super.beforeAll()
     val table = "lineitem"
     val tableDir =
-      getClass.getResource("").getPath + "/../../../../" +
+      getClass.getResource("").getPath + "/../../../../../../../../../../../" +
         "/backends-velox/src/test/resources/tpch-data-parquet-velox/"
     val tablePath = new File(tableDir, table).getAbsolutePath
     val tableDF = spark.read.format("parquet").load(tablePath)

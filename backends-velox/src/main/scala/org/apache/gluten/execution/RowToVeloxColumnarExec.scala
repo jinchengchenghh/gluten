@@ -108,8 +108,7 @@ object RowToVeloxColumnarExec {
   def toColumnarBatchIterator(
       in: Iterator[InternalRow],
       schema: StructType,
-      columnBatchSize: Int,
-      runtime: org.apache.gluten.exec.Runtime): Iterator[ColumnarBatch] = {
+      columnBatchSize: Int): Iterator[ColumnarBatch] = {
     val numInputRows = new SQLMetric("numInputRows")
     val numOutputBatches = new SQLMetric("numOutputBatches")
     val convertTime = new SQLMetric("convertTime")
@@ -119,8 +118,7 @@ object RowToVeloxColumnarExec {
       numInputRows,
       numOutputBatches,
       convertTime,
-      columnBatchSize,
-      runtime)
+      columnBatchSize)
   }
 
   def toColumnarBatchIterator(
@@ -130,24 +128,6 @@ object RowToVeloxColumnarExec {
       numOutputBatches: SQLMetric,
       convertTime: SQLMetric,
       columnBatchSize: Int): Iterator[ColumnarBatch] = {
-    toColumnarBatchIterator(
-      it,
-      schema,
-      numInputRows,
-      numOutputBatches,
-      convertTime,
-      columnBatchSize,
-      Runtimes.contextInstance())
-  }
-
-  def toColumnarBatchIterator(
-      it: Iterator[InternalRow],
-      schema: StructType,
-      numInputRows: SQLMetric,
-      numOutputBatches: SQLMetric,
-      convertTime: SQLMetric,
-      columnBatchSize: Int,
-      runtime: org.apache.gluten.exec.Runtime): Iterator[ColumnarBatch] = {
     if (it.isEmpty) {
       return Iterator.empty
     }

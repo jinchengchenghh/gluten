@@ -728,9 +728,8 @@ JNIEXPORT jstring JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniW
     jint start,
     jint length) {
   JNI_METHOD_START
-  auto ctx = gluten::getRuntime(env, wrapper);
   GLUTEN_CHECK(length >= 0, "ColumnarBatch toString length should be greater or equal than 0");
-  auto batch = ctx->objectStore()->retrieve<ColumnarBatch>(handle);
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(handle);
   return env->NewStringUTF(batch->toString(start, length).c_str());
   JNI_METHOD_END(nullptr)
 }

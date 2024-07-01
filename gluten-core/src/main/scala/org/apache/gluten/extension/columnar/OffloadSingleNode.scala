@@ -120,7 +120,7 @@ case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
   }
 }
 
-case class OffloadProject() extends OffloadSingleNode with LogLevelUtil {
+case class OffloadProjectPartial() extends OffloadSingleNode with LogLevelUtil {
   override def offload(plan: SparkPlan): SparkPlan = plan match {
     case p: ProjectExec if TransformHints.isNotTransformable(p) =>
       val original = p
