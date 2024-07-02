@@ -429,6 +429,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarProjectCollapse: Boolean = conf.getConf(ENABLE_COLUMNAR_PROJECT_COLLAPSE)
 
+  def enableColumnarPartialProject: Boolean = conf.getConf(ENABLE_COLUMNAR_PARTIAL_PROJECT)
+
   def awsSdkLogLevel: String = conf.getConf(AWS_SDK_LOG_LEVEL)
 
   def awsS3RetryMode: String = conf.getConf(AWS_S3_RETRY_MODE)
@@ -1797,6 +1799,12 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.project.collapse")
       .internal()
       .doc("Combines two columnar project operators into one and perform alias substitution")
+      .booleanConf
+      .createWithDefault(true)
+
+  val ENABLE_COLUMNAR_PARTIAL_PROJECT =
+    buildConf("spark.gluten.sql.columnar.partial.project")
+      .doc("Execute partial project which is not supported in backend in Spark")
       .booleanConf
       .createWithDefault(true)
 

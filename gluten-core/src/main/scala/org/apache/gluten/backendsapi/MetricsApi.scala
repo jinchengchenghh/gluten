@@ -83,6 +83,9 @@ trait MetricsApi extends Serializable {
 
   def genColumnarToRowMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
 
+  def genSparkPartialProjectMetric(sparkContext: SparkContext): Map[String, SQLMetric] =
+    Map("time" -> SQLMetrics.createTimingMetric(sparkContext, "time of project"))
+
   def genRowToColumnarMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
 
   def genLimitTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]

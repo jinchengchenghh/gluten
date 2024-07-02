@@ -104,6 +104,23 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
 }
 
 object RowToVeloxColumnarExec {
+
+  def toColumnarBatchIterator(
+      in: Iterator[InternalRow],
+      schema: StructType,
+      columnBatchSize: Int): Iterator[ColumnarBatch] = {
+    val numInputRows = new SQLMetric("numInputRows")
+    val numOutputBatches = new SQLMetric("numOutputBatches")
+    val convertTime = new SQLMetric("convertTime")
+    RowToVeloxColumnarExec.toColumnarBatchIterator(
+      in,
+      schema,
+      numInputRows,
+      numOutputBatches,
+      convertTime,
+      columnBatchSize)
+  }
+
   def toColumnarBatchIterator(
       it: Iterator[InternalRow],
       schema: StructType,
