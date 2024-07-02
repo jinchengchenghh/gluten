@@ -36,7 +36,6 @@ object MiscColumnarRules {
           OffloadAggregate(),
           OffloadExchange(),
           OffloadJoin(),
-          OffloadProject(),
           OffloadProjectPartial()
         )
       )
