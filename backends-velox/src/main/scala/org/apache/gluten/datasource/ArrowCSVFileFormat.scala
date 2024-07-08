@@ -40,7 +40,6 @@ import org.apache.spark.sql.sources.{DataSourceRegister, Filter}
 import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.SerializableConfiguration
-
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.dataset.file.FileSystemDatasetFactory
 import org.apache.arrow.dataset.scanner.ScanOptions
@@ -50,11 +49,12 @@ import org.apache.arrow.vector.VectorUnloader
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, Path}
-
 import java.net.URLDecoder
 import java.util.Optional
 
 import scala.collection.JavaConverters.{asJavaIterableConverter, asScalaBufferConverter}
+
+import org.apache.gluten.GlutenConfig
 
 class ArrowCSVFileFormat(parsedOptions: CSVOptions)
   extends FileFormat
@@ -99,7 +99,7 @@ class ArrowCSVFileFormat(parsedOptions: CSVOptions)
     val sqlConf = sparkSession.sessionState.conf
     val broadcastedHadoopConf =
       sparkSession.sparkContext.broadcast(new SerializableConfiguration(hadoopConf))
-    val batchSize = sqlConf.columnBatchSize
+    val batchSize = GlutenConfig.getConf.maxBatchSize
     val columnPruning = sqlConf.csvColumnPruning &&
       !requiredSchema.exists(_.name == sparkSession.sessionState.conf.columnNameOfCorruptRecord)
     val actualFilters =

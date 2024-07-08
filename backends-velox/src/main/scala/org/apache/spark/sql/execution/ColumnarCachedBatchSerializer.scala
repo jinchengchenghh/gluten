@@ -140,7 +140,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
     val numInputRows = metrics("numInputRows")
     val numOutputBatches = metrics("numOutputBatches")
     val convertTime = metrics("convertTime")
-    val numRows = conf.columnBatchSize
+    val numRows = GlutenConfig.getConf.maxBatchSize
     val rddColumnarBatch = input.mapPartitions {
       it =>
         RowToVeloxColumnarExec.toColumnarBatchIterator(

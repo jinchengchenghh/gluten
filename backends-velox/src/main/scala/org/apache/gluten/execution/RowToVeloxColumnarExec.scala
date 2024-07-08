@@ -180,7 +180,7 @@ object RowToVeloxColumnarExec {
         rowCount += 1
 
         convertTime += System.currentTimeMillis() - start
-        while (rowCount < columnBatchSize && !finished) {
+        while (rowCount <= columnBatchSize && !finished) {
           val iterHasNext = it.hasNext
           if (!iterHasNext) {
             finished = true
