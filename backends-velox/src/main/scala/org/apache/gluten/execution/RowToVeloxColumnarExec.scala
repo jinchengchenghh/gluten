@@ -48,6 +48,9 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
     val numInputRows = longMetric("numInputRows")
     val numOutputBatches = longMetric("numOutputBatches")
     val convertTime = longMetric("convertTime")
+
+    // Instead of creating a new config we are reusing columnBatchSize. In the future if we do
+    // combine with some of the Arrow conversion tools we will need to unify some of the configs.
     val numRows = GlutenConfig.getConf.maxBatchSize
     // This avoids calling `schema` in the RDD closure, so that we don't need to include the entire
     // plan (this) in the closure.
@@ -92,6 +95,23 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
 }
 
 object RowToVeloxColumnarExec {
+
+  def toColumnarBatchIterator(
+      in: Iterator[InternalRow],
+      schema: StructType,
+      columnBatchSize: Int): Iterator[ColumnarBatch] = {
+    val numInputRows = new SQLMetric("numInputRows")
+    val numOutputBatches = new SQLMetric("numOutputBatches")
+    val convertTime = new SQLMetric("convertTime")
+    RowToVeloxColumnarExec.toColumnarBatchIterator(
+      in,
+      schema,
+      numInputRows,
+      numOutputBatches,
+      convertTime,
+      columnBatchSize)
+  }
+
   def toColumnarBatchIterator(
       it: Iterator[InternalRow],
       schema: StructType,

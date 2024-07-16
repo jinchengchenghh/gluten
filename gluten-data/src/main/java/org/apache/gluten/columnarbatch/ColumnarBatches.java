@@ -21,7 +21,6 @@ import org.apache.gluten.exec.Runtime;
 import org.apache.gluten.exec.Runtimes;
 import org.apache.gluten.utils.ArrowAbiUtil;
 import org.apache.gluten.utils.ArrowUtil;
-import org.apache.gluten.utils.ImplicitClass;
 import org.apache.gluten.vectorized.ArrowWritableColumnVector;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -100,7 +99,6 @@ public class ColumnarBatches {
         newVectors[i] = from.column(i);
       }
       FIELD_COLUMNS.set(target, newVectors);
-      System.out.println();
     } catch (IllegalAccessException e) {
       throw new GlutenException(e);
     }
@@ -186,24 +184,25 @@ public class ColumnarBatches {
 
       ColumnarBatch output =
           ArrowAbiUtil.importToSparkColumnarBatch(allocator, arrowSchema, cArray);
+      return output;
 
       // Follow gluten input's reference count. This might be optimized using
       // automatic clean-up or once the extensibility of ColumnarBatch is enriched
-      IndicatorVector giv = (IndicatorVector) input.column(0);
-      ImplicitClass.ArrowColumnarBatchRetainer retainer =
-          new ImplicitClass.ArrowColumnarBatchRetainer(output);
-      for (long i = 0; i < (giv.refCnt() - 1); i++) {
-        retainer.retain();
-      }
-
-      // close the input one
-      for (long i = 0; i < giv.refCnt(); i++) {
-        input.close();
-      }
-
-      // populate new vectors to input
-      transferVectors(output, input);
-      return input;
+      //      IndicatorVector giv = (IndicatorVector) input.column(0);
+      //      ImplicitClass.ArrowColumnarBatchRetainer retainer =
+      //          new ImplicitClass.ArrowColumnarBatchRetainer(output);
+      //      for (long i = 0; i < (giv.refCnt() - 1); i++) {
+      //        retainer.retain();
+      //      }
+      //
+      //      // close the input one
+      //      for (long i = 0; i < giv.refCnt(); i++) {
+      //        input.close();
+      //      }
+      //
+      //      // populate new vectors to input
+      //      transferVectors(output, input);
+      //      return Pair.of(input, end);
     }
   }
 
@@ -334,6 +333,11 @@ public class ColumnarBatches {
     final long[] handles = Arrays.stream(ivs).mapToLong(IndicatorVector::handle).toArray();
     return ColumnarBatchJniWrapper.create(Runtimes.contextInstance("ColumnarBatches#compose"))
         .compose(handles);
+  }
+
+  public static String toString(ColumnarBatch batch, int start, int length) {
+    return ColumnarBatchJniWrapper.create(Runtimes.contextInstance("ColumnarBatches#toString"))
+        .toString(getNativeHandle(batch), start, length);
   }
 
   private static ColumnarBatch create(IndicatorVector iv) {

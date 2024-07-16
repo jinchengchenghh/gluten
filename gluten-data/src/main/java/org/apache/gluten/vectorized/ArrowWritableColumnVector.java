@@ -1255,9 +1255,8 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
       throw new UnsupportedOperationException();
     }
 
-    void setNotNull(int rowId) {
-      throw new UnsupportedOperationException();
-    }
+    // No need to setNotNull then setValue, only setValue is enough
+    void setNotNull(int rowId) {}
 
     void setNulls(int rowId, int count) {
       throw new UnsupportedOperationException();
