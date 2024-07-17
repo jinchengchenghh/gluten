@@ -21,6 +21,7 @@ import org.apache.gluten.exec.Runtime;
 import org.apache.gluten.exec.Runtimes;
 import org.apache.gluten.utils.ArrowAbiUtil;
 import org.apache.gluten.utils.ArrowUtil;
+import org.apache.gluten.utils.ImplicitClass;
 import org.apache.gluten.vectorized.ArrowWritableColumnVector;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -161,6 +162,36 @@ public class ColumnarBatches {
     return load(allocator, batch);
   }
 
+  public static ColumnarBatch ensureLoadedWithoutRefcount(
+      BufferAllocator allocator, ColumnarBatch input) {
+    if (isHeavyBatch(input)) {
+      return input;
+    }
+
+    if (!ColumnarBatches.isLightBatch(input)) {
+      throw new IllegalArgumentException(
+          "Input is not light columnar batch. "
+              + "Please consider to use vanilla spark's row based input by setting one of the below"
+              + " configs: \n"
+              + "spark.sql.parquet.enableVectorizedReader=false\n"
+              + "spark.sql.inMemoryColumnarStorage.enableVectorizedReader=false\n"
+              + "spark.sql.orc.enableVectorizedReader=false\n");
+    }
+    IndicatorVector iv = (IndicatorVector) input.column(0);
+    try (ArrowSchema cSchema = ArrowSchema.allocateNew(allocator);
+        ArrowArray cArray = ArrowArray.allocateNew(allocator);
+        ArrowSchema arrowSchema = ArrowSchema.allocateNew(allocator);
+        CDataDictionaryProvider provider = new CDataDictionaryProvider()) {
+      ColumnarBatchJniWrapper.create(Runtimes.contextInstance("ColumnarBatches#load"))
+          .exportToArrow(iv.handle(), cSchema.memoryAddress(), cArray.memoryAddress());
+
+      Data.exportSchema(
+          allocator, ArrowUtil.toArrowSchema(cSchema, allocator, provider), provider, arrowSchema);
+
+      return ArrowAbiUtil.importToSparkColumnarBatch(allocator, arrowSchema, cArray);
+    }
+  }
+
   private static ColumnarBatch load(BufferAllocator allocator, ColumnarBatch input) {
     if (!ColumnarBatches.isLightBatch(input)) {
       throw new IllegalArgumentException(
@@ -184,25 +215,24 @@ public class ColumnarBatches {
 
       ColumnarBatch output =
           ArrowAbiUtil.importToSparkColumnarBatch(allocator, arrowSchema, cArray);
-      return output;
 
       // Follow gluten input's reference count. This might be optimized using
       // automatic clean-up or once the extensibility of ColumnarBatch is enriched
-      //      IndicatorVector giv = (IndicatorVector) input.column(0);
-      //      ImplicitClass.ArrowColumnarBatchRetainer retainer =
-      //          new ImplicitClass.ArrowColumnarBatchRetainer(output);
-      //      for (long i = 0; i < (giv.refCnt() - 1); i++) {
-      //        retainer.retain();
-      //      }
-      //
-      //      // close the input one
-      //      for (long i = 0; i < giv.refCnt(); i++) {
-      //        input.close();
-      //      }
-      //
-      //      // populate new vectors to input
-      //      transferVectors(output, input);
-      //      return Pair.of(input, end);
+      IndicatorVector giv = (IndicatorVector) input.column(0);
+      ImplicitClass.ArrowColumnarBatchRetainer retainer =
+          new ImplicitClass.ArrowColumnarBatchRetainer(output);
+      for (long i = 0; i < (giv.refCnt() - 1); i++) {
+        retainer.retain();
+      }
+
+      // close the input one
+      for (long i = 0; i < giv.refCnt(); i++) {
+        input.close();
+      }
+
+      // populate new vectors to input
+      transferVectors(output, input);
+      return input;
     }
   }
 

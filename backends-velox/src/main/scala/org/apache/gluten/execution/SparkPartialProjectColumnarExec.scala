@@ -36,6 +36,8 @@ import org.apache.spark.sql.hive.HiveUdfUtil
 import org.apache.spark.sql.types.{BinaryType, BooleanType, ByteType, DataType, DateType, DecimalType, DoubleType, FloatType, IntegerType, LongType, NullType, ShortType, StringType, TimestampType, YearMonthIntervalType}
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
+import org.apache.arrow.memory.BufferAllocator
+
 import scala.collection.mutable.ListBuffer
 
 /**
@@ -269,7 +271,9 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
     val numRows = childData.numRows()
     val start = System.currentTimeMillis()
     val arrowBatch =
-      ColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance(), childData)
+      ColumnarBatches.ensureLoadedWithoutRefcount(
+        ArrowBufferAllocators.contextInstance(),
+        childData)
     c2r += System.currentTimeMillis() - start
 
     val schema =

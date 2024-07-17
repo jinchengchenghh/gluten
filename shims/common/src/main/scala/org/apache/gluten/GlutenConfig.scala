@@ -1823,7 +1823,7 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.project.exec")
       .doc("Execute project whose input and output is columnar batch, control ProjectColumnarExec")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val ENABLE_COMMON_SUBEXPRESSION_ELIMINATE =
     buildConf("spark.gluten.sql.commonSubexpressionEliminate")
