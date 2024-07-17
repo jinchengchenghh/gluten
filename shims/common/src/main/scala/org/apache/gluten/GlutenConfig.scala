@@ -1817,7 +1817,7 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.partial.project")
       .doc("Execute partial project which is not supported in backend in Spark")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val ENABLE_PROJECT_COLUMNAR_EXEC =
     buildConf("spark.gluten.sql.columnar.project.exec")
