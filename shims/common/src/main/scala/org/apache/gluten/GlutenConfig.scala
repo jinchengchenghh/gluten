@@ -1817,13 +1817,13 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.partial.project")
       .doc("Execute partial project which is not supported in backend in Spark")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val ENABLE_PROJECT_COLUMNAR_EXEC =
     buildConf("spark.gluten.sql.columnar.project.exec")
       .doc("Execute project whose input and output is columnar batch, control ProjectColumnarExec")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val ENABLE_COMMON_SUBEXPRESSION_ELIMINATE =
     buildConf("spark.gluten.sql.commonSubexpressionEliminate")

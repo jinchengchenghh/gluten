@@ -49,6 +49,8 @@ case class ProjectColumnarExec(projectList: Seq[NamedExpression], child: SparkPl
 
   override def output: Seq[Attribute] = projectList.map(_.toAttribute)
 
+  override def supportsColumnar: Boolean = true
+
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     child.executeColumnar().mapPartitions {
       batches =>
