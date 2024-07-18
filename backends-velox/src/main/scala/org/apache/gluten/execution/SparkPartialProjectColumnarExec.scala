@@ -28,7 +28,7 @@ import org.apache.gluten.vectorized.ArrowWritableColumnVector
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, ConditionalExpression, Expression, LambdaFunction, MutableProjection, NamedExpression, ScalaUDF}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, CaseWhen, Coalesce, ConditionalExpression, Expression, If, LambdaFunction, MutableProjection, NamedExpression, NaNvl, ScalaUDF, UnsafeRow}
 import org.apache.spark.sql.execution.{ExplainUtils, ProjectExec, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.execution.vectorized.{MutableColumnarRow, WritableColumnVector}
@@ -170,6 +170,7 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
     val totalTime = longMetric("time")
     val c2r = longMetric("column_to_row_time")
     val r2c = longMetric("row_to_column_time")
+    val isMutable = canUseMutableProjection()
     child.executeColumnar().mapPartitions {
       batches =>
         val res: Iterator[Iterator[ColumnarBatch]] = new Iterator[Iterator[ColumnarBatch]] {
@@ -182,8 +183,9 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
             } else {
               val start = System.currentTimeMillis()
               val childData = ColumnarBatches.select(batch, projectIndexInChild.toArray)
-              val projectedBatch =
+              val projectedBatch = if (isMutable) {
                 getProjectedBatchArrow(childData, c2r, r2c)
+              } else getProjectedBatch(childData, c2r, r2c)
               val batchIterator = projectedBatch.map {
                 b =>
 //                  print("batch 1" + ColumnarBatches.toString(batch, 0, 20) + "\n")
@@ -219,6 +221,16 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
           .create()
 
     }
+  }
+
+  // scalastyle:off line.size.limit
+  // String type cannot use MutableProjection
+  // Otherwise will throw java.lang.UnsupportedOperationException: Datatype not supported StringType
+  // at org.apache.spark.sql.execution.vectorized.MutableColumnarRow.update(MutableColumnarRow.java:224)
+  // at org.apache.spark.sql.catalyst.expressions.GeneratedClass$SpecificMutableProjection.apply(Unknown Source)
+  // scalastyle:on line.size.limit
+  private def canUseMutableProjection(): Boolean = {
+    replacedAliasUdf.forall(r => UnsafeRow.isMutable(r.dataType))
   }
 
   /**
@@ -347,6 +359,14 @@ object SparkPartialProjectColumnarExec {
     }
   }
 
+  private def isConditionalExpression(expr: Expression): Boolean = expr match {
+    case _: If => true
+    case _: CaseWhen => true
+    case _: NaNvl => true
+    case _: Coalesce => true
+    case _ => false
+  }
+
   private def replaceExpressionUDF(
       expr: Expression,
       replacedAliasUdf: ListBuffer[Alias]): Expression = {
@@ -366,17 +386,16 @@ object SparkPartialProjectColumnarExec {
         }
       // Alias(HiveSimpleUDF) not exists, only be Alias(ToPrettyString(HiveSimpleUDF)),
       // so don't process this condition
-
-      case i: ConditionalExpression =>
+      case x if isConditionalExpression(x) =>
         // For example:
         // myudf is udf((x: Int) => x + 1)
         // if (isnull(cast(l_extendedprice#9 as bigint))) null
         // else myudf(knownnotnull(cast(l_extendedprice#9 as bigint)))
         // if we extract else branch, and use the data child l_extendedprice,
         // the result is incorrect for null value
-        if (containsUDF(i)) {
-          replaceByAlias(i, replacedAliasUdf)
-        } else i
+        if (containsUDF(expr)) {
+          replaceByAlias(expr, replacedAliasUdf)
+        } else expr
       case p => p.withNewChildren(p.children.map(c => replaceExpressionUDF(c, replacedAliasUdf)))
     }
   }
