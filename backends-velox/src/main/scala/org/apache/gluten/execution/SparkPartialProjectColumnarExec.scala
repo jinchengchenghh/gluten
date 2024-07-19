@@ -230,7 +230,10 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
   // at org.apache.spark.sql.catalyst.expressions.GeneratedClass$SpecificMutableProjection.apply(Unknown Source)
   // scalastyle:on line.size.limit
   private def canUseMutableProjection(): Boolean = {
-    replacedAliasUdf.forall(r => UnsafeRow.isMutable(r.dataType))
+    replacedAliasUdf.forall(r => r.dataType match {
+      case StringType | BinaryType => false
+      case _ => true
+    })
   }
 
   /**
@@ -257,18 +260,13 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
 
     val schema =
       SparkShimLoader.getSparkShims.structFromAttributes(replacedAliasUdf.map(_.toAttribute))
-    val itr = RowToVeloxColumnarExec.toColumnarBatchIterator(
+    RowToVeloxColumnarExec.toColumnarBatchIterator(
       rows,
       schema,
       numOutputRows,
       numInputBatches,
       r2c,
       Integer.MAX_VALUE)
-    val newItr = if (itr.hasNext) {
-      val batch = itr.next()
-      Iterator.single(batch)
-    } else Iterator.empty
-    newItr
     // TODO: should check the size <= 1, but now it has bug, will change iterator to empty
   }
 
