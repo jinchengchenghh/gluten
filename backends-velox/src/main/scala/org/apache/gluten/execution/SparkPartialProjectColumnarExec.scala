@@ -28,7 +28,7 @@ import org.apache.gluten.vectorized.ArrowWritableColumnVector
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, CaseWhen, Coalesce, Expression, If, LambdaFunction, MutableProjection, NamedExpression, NaNvl, ScalaUDF, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, CaseWhen, Coalesce, Expression, If, LambdaFunction, MutableProjection, NamedExpression, NaNvl, ScalaUDF, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.execution.{ExplainUtils, ProjectExec, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.execution.vectorized.{MutableColumnarRow, WritableColumnVector}
@@ -230,10 +230,12 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
   // at org.apache.spark.sql.catalyst.expressions.GeneratedClass$SpecificMutableProjection.apply(Unknown Source)
   // scalastyle:on line.size.limit
   private def canUseMutableProjection(): Boolean = {
-    replacedAliasUdf.forall(r => r.dataType match {
-      case StringType | BinaryType => false
-      case _ => true
-    })
+    replacedAliasUdf.forall(
+      r =>
+        r.dataType match {
+          case StringType | BinaryType => false
+          case _ => true
+        })
   }
 
   /**
@@ -245,8 +247,7 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
       c2r: SQLMetric,
       r2c: SQLMetric): Iterator[ColumnarBatch] = {
     // select part of child output and child data
-    val proj = MutableProjection.create(replacedAliasUdf, projectAttributes)
-
+    val proj = UnsafeProjection.create(replacedAliasUdf, projectAttributes)
     val numOutputRows = new SQLMetric("numOutputRows")
     val numInputBatches = new SQLMetric("numInputBatches")
     val rows = VeloxColumnarToRowExec
