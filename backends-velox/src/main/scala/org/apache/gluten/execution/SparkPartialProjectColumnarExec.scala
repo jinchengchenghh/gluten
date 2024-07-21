@@ -28,7 +28,7 @@ import org.apache.gluten.vectorized.ArrowWritableColumnVector
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, CaseWhen, Coalesce, Expression, If, LambdaFunction, MutableProjection, NamedExpression, NaNvl, ScalaUDF, UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, CaseWhen, Coalesce, Expression, If, LambdaFunction, MutableProjection, NamedExpression, NaNvl, ScalaUDF, UnsafeProjection}
 import org.apache.spark.sql.execution.{ExplainUtils, ProjectExec, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.execution.vectorized.{MutableColumnarRow, WritableColumnVector}
@@ -267,7 +267,7 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
       numOutputRows,
       numInputBatches,
       r2c,
-      Integer.MAX_VALUE)
+      childData.numRows())
     // TODO: should check the size <= 1, but now it has bug, will change iterator to empty
   }
 
