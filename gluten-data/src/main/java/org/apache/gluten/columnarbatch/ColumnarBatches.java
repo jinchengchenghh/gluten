@@ -100,7 +100,6 @@ public class ColumnarBatches {
         newVectors[i] = from.column(i);
       }
       FIELD_COLUMNS.set(target, newVectors);
-      System.out.println();
     } catch (IllegalAccessException e) {
       throw new GlutenException(e);
     }
@@ -161,6 +160,36 @@ public class ColumnarBatches {
       return batch;
     }
     return load(allocator, batch);
+  }
+
+  public static ColumnarBatch ensureLoadedWithoutRefcount(
+      BufferAllocator allocator, ColumnarBatch input) {
+    if (isHeavyBatch(input)) {
+      return input;
+    }
+
+    if (!ColumnarBatches.isLightBatch(input)) {
+      throw new IllegalArgumentException(
+          "Input is not light columnar batch. "
+              + "Please consider to use vanilla spark's row based input by setting one of the below"
+              + " configs: \n"
+              + "spark.sql.parquet.enableVectorizedReader=false\n"
+              + "spark.sql.inMemoryColumnarStorage.enableVectorizedReader=false\n"
+              + "spark.sql.orc.enableVectorizedReader=false\n");
+    }
+    IndicatorVector iv = (IndicatorVector) input.column(0);
+    try (ArrowSchema cSchema = ArrowSchema.allocateNew(allocator);
+        ArrowArray cArray = ArrowArray.allocateNew(allocator);
+        ArrowSchema arrowSchema = ArrowSchema.allocateNew(allocator);
+        CDataDictionaryProvider provider = new CDataDictionaryProvider()) {
+      ColumnarBatchJniWrapper.create(Runtimes.contextInstance("ColumnarBatches#load"))
+          .exportToArrow(iv.handle(), cSchema.memoryAddress(), cArray.memoryAddress());
+
+      Data.exportSchema(
+          allocator, ArrowUtil.toArrowSchema(cSchema, allocator, provider), provider, arrowSchema);
+
+      return ArrowAbiUtil.importToSparkColumnarBatch(allocator, arrowSchema, cArray);
+    }
   }
 
   private static ColumnarBatch load(BufferAllocator allocator, ColumnarBatch input) {
@@ -334,6 +363,11 @@ public class ColumnarBatches {
     final long[] handles = Arrays.stream(ivs).mapToLong(IndicatorVector::handle).toArray();
     return ColumnarBatchJniWrapper.create(Runtimes.contextInstance("ColumnarBatches#compose"))
         .compose(handles);
+  }
+
+  public static String toString(ColumnarBatch batch, int start, int length) {
+    return ColumnarBatchJniWrapper.create(Runtimes.contextInstance("ColumnarBatches#toString"))
+        .toString(getNativeHandle(batch), start, length);
   }
 
   private static ColumnarBatch create(IndicatorVector iv) {

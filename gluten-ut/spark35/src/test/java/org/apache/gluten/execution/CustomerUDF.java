@@ -14,30 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gluten.execution;
 
-#pragma once
+import org.apache.hadoop.hive.ql.exec.Description;
+import org.apache.hadoop.hive.ql.exec.UDF;
 
-#include <arrow/c/abi.h>
-#include "memory/ColumnarBatch.h"
-#include "operators/r2c/RowToColumnar.h"
-#include "velox/common/memory/Memory.h"
-#include "velox/type/Type.h"
-
-namespace gluten {
-
-class VeloxRowToColumnarConverter final : public RowToColumnarConverter {
- public:
-  VeloxRowToColumnarConverter(
-      struct ArrowSchema* cSchema,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> memoryPool);
-
-  std::shared_ptr<ColumnarBatch> convert(int64_t numRows, int64_t* rowLength, uint8_t* memoryAddress);
-
- private:
-  std::shared_ptr<ColumnarBatch> convertPrimitive(int64_t numRows, int64_t* rowLength, uint8_t* memoryAddress);
-
-  facebook::velox::TypePtr rowType_;
-  std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
-};
-
-} // namespace gluten
+/**
+ * UDF that generates a the link id (MD5 hash) of a URL. Used to join with link join.
+ *
+ * <p>Usage example:
+ *
+ * <p>CREATE TEMPORARY FUNCTION linkid AS 'com.pinterest.hadoop.hive.LinkIdUDF';
+ */
+@Description(
+    name = "linkid",
+    value = "_FUNC_(String) - Returns linkid as String, it's the MD5 hash of url.")
+public class CustomerUDF extends UDF {
+  public String evaluate(String url) {
+    if (url == null || url == "") {
+      return "";
+    }
+    return "extendedudf" + url;
+  }
+}

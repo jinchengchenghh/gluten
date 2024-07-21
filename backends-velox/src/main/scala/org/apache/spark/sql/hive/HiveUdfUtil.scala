@@ -14,30 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.spark.sql.hive
 
-#pragma once
+import org.apache.spark.sql.catalyst.expressions.Expression
 
-#include <arrow/c/abi.h>
-#include "memory/ColumnarBatch.h"
-#include "operators/r2c/RowToColumnar.h"
-#include "velox/common/memory/Memory.h"
-#include "velox/type/Type.h"
+object HiveUdfUtil {
+  def isHiveUdf(expr: Expression): Boolean = expr match {
+    case _: HiveSimpleUDF => true
+    case _: HiveGenericUDF => true
+    case _: HiveUDAFFunction => true
+    case _: HiveGenericUDTF => true
+    case _ => false
+  }
 
-namespace gluten {
-
-class VeloxRowToColumnarConverter final : public RowToColumnarConverter {
- public:
-  VeloxRowToColumnarConverter(
-      struct ArrowSchema* cSchema,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> memoryPool);
-
-  std::shared_ptr<ColumnarBatch> convert(int64_t numRows, int64_t* rowLength, uint8_t* memoryAddress);
-
- private:
-  std::shared_ptr<ColumnarBatch> convertPrimitive(int64_t numRows, int64_t* rowLength, uint8_t* memoryAddress);
-
-  facebook::velox::TypePtr rowType_;
-  std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
-};
-
-} // namespace gluten
+}

@@ -87,7 +87,7 @@ case class ArrowConvertorRule(session: SparkSession) extends Rule[LogicalPlan] {
       options,
       columnPruning = session.sessionState.conf.csvColumnPruning,
       session.sessionState.conf.sessionLocalTimeZone)
-    checkSchema(dataSchema) &&
+    SparkSchemaUtil.checkSchema(dataSchema) &&
     checkCsvOptions(csvOptions, session.sessionState.conf.sessionLocalTimeZone) &&
     dataSchema.nonEmpty
   }
@@ -106,13 +106,4 @@ case class ArrowConvertorRule(session: SparkSession) extends Rule[LogicalPlan] {
     SparkShimLoader.getSparkShims.dateTimestampFormatInReadIsDefaultValue(csvOptions, timeZone)
   }
 
-  private def checkSchema(schema: StructType): Boolean = {
-    try {
-      SparkSchemaUtil.toArrowSchema(schema)
-      true
-    } catch {
-      case _: Exception =>
-        false
-    }
-  }
 }

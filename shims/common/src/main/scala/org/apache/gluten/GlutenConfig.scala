@@ -429,6 +429,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarProjectCollapse: Boolean = conf.getConf(ENABLE_COLUMNAR_PROJECT_COLLAPSE)
 
+  def enableColumnarPartialProject: Boolean = conf.getConf(ENABLE_COLUMNAR_PARTIAL_PROJECT)
+
+  def enableProjectColumnarExec: Boolean = conf.getConf(ENABLE_PROJECT_COLUMNAR_EXEC)
+
   def awsSdkLogLevel: String = conf.getConf(AWS_SDK_LOG_LEVEL)
 
   def awsS3RetryMode: String = conf.getConf(AWS_S3_RETRY_MODE)
@@ -1808,6 +1812,18 @@ object GlutenConfig {
       .doc("Combines two columnar project operators into one and perform alias substitution")
       .booleanConf
       .createWithDefault(true)
+
+  val ENABLE_COLUMNAR_PARTIAL_PROJECT =
+    buildConf("spark.gluten.sql.columnar.partial.project")
+      .doc("Execute partial project which is not supported in backend in Spark")
+      .booleanConf
+      .createWithDefault(true)
+
+  val ENABLE_PROJECT_COLUMNAR_EXEC =
+    buildConf("spark.gluten.sql.columnar.project.exec")
+      .doc("Execute project whose input and output is columnar batch, control ProjectColumnarExec")
+      .booleanConf
+      .createWithDefault(false)
 
   val ENABLE_COMMON_SUBEXPRESSION_ELIMINATE =
     buildConf("spark.gluten.sql.commonSubexpressionEliminate")

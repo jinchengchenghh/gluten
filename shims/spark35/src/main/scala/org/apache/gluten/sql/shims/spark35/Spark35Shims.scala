@@ -17,6 +17,7 @@
 package org.apache.gluten.sql.shims.spark35
 
 import org.apache.gluten.expression.{ExpressionNames, Sig}
+import org.apache.gluten.expression.ExpressionNames.TO_PRETTY_STRING
 import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
 
 import org.apache.spark._
@@ -80,7 +81,8 @@ class Spark35Shims extends SparkShims {
       Sig[Empty2Null](ExpressionNames.EMPTY2NULL),
       Sig[TimestampAdd](ExpressionNames.TIMESTAMP_ADD),
       Sig[RoundFloor](ExpressionNames.FLOOR),
-      Sig[RoundCeil](ExpressionNames.CEIL)
+      Sig[RoundCeil](ExpressionNames.CEIL),
+      Sig[ToPrettyString](TO_PRETTY_STRING)
     )
   }
 
