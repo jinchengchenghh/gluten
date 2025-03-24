@@ -30,6 +30,9 @@
 #ifdef GLUTEN_ENABLE_IAA
 #include "utils/qpl/QplCodec.h"
 #endif
+#ifdef GLUTEN_ENABLE_GPU
+#include "velox/experimental/cudf/exec/ToCudf.h"
+#endif
 #include "compute/VeloxRuntime.h"
 #include "config/VeloxConfig.h"
 #include "jni/JniFileSystem.h"
@@ -147,6 +150,10 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
 #endif
 #ifdef ENABLE_ABFS
   velox::filesystems::registerAbfsFileSystem();
+#endif
+
+#ifdef GLUTEN_ENABLE_GPU
+velox::cudf_velox::registerCudf();
 #endif
 
   initJolFilesystem();
