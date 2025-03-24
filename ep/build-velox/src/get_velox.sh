@@ -160,7 +160,7 @@ if [ -d $VELOX_SOURCE_DIR ]; then
     fi
     git reset --hard HEAD
     git checkout refs/tags/build_$TARGET_BUILD_COMMIT
-    git fetch origin/pull/12735/head
+    git fetch origin pull/12735/head
     git rebase FETCH_HEAD
   else
     echo "$VELOX_BRANCH can't be found in $VELOX_REPO, skipping the download..."
@@ -169,7 +169,7 @@ else
   git clone $VELOX_REPO -b $VELOX_BRANCH $VELOX_SOURCE_DIR
   cd $VELOX_SOURCE_DIR
   git checkout $TARGET_BUILD_COMMIT
-  git fetch origin/pull/12735/head
+  git fetch origin pull/12735/head
   git rebase FETCH_HEAD
 fi
 
