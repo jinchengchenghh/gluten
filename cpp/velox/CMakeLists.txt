@@ -350,9 +350,10 @@ if(ENABLE_GPU)
   import_library(
     facebook::velox::velox_cudf_parquet_connector
     ${VELOX_BUILD_PATH}/velox/experimental/cudf/connectors/parquet/libvelox_cudf_parquet_connector.a)
-#  import_library(
-#    facebook::velox::velox_cudf_parquet_config
-#    ${VELOX_BUILD_PATH}/velox/experimental/cudf/connectors/parquet/libvelox_cudf_parquet_config.a)
+  # link cudf in velox_cudf_parquet_config
+  import_library(
+    facebook::velox::velox_cudf_parquet_config
+    ${VELOX_BUILD_PATH}/velox/experimental/cudf/connectors/parquet/libvelox_cudf_parquet_config.a)
 
   target_link_libraries(velox PUBLIC facebook::velox::velox_cudf_vector facebook::velox::velox_cudf_parquet_connector
     facebook::velox::velox_cudf_exec)
