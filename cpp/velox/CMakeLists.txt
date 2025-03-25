@@ -340,6 +340,24 @@ if(BUILD_EXAMPLES)
   add_subdirectory(udf/examples)
 endif()
 
+if(ENABLE_GPU)
+  import_library(
+      facebook::velox::velox_cudf_vector
+      ${VELOX_BUILD_PATH}/velox/experimental/cudf/vector/libvelox_cudf_vector.a)
+  import_library(
+    facebook::velox::velox_cudf_exec
+    ${VELOX_BUILD_PATH}/velox/experimental/cudf/exec/libvelox_cudf_exec.a)
+  import_library(
+    facebook::velox::velox_cudf_parquet_connector
+    ${VELOX_BUILD_PATH}/velox/experimental/cudf/connectors/parquet/libvelox_cudf_parquet_connector.a)
+#  import_library(
+#    facebook::velox::velox_cudf_parquet_config
+#    ${VELOX_BUILD_PATH}/velox/experimental/cudf/connectors/parquet/libvelox_cudf_parquet_config.a)
+
+  target_link_libraries(velox PUBLIC facebook::velox::velox_cudf_vector facebook::velox::velox_cudf_parquet_connector
+    facebook::velox::velox_cudf_exec)
+endif()
+
 add_custom_command(
   TARGET velox
   POST_BUILD

@@ -16,8 +16,9 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2025_03_21
+VELOX_REPO=https://github.com/jinchengchenghh/velox.git
+#2025_03_21
+VELOX_BRANCH=cudfoap
 VELOX_HOME=""
 
 OS=`uname -s`
@@ -160,8 +161,6 @@ if [ -d $VELOX_SOURCE_DIR ]; then
     fi
     git reset --hard HEAD
     git checkout refs/tags/build_$TARGET_BUILD_COMMIT
-    git fetch https://github.com/facebookincubator/velox.git pull/12735/head
-    git rebase FETCH_HEAD
   else
     echo "$VELOX_BRANCH can't be found in $VELOX_REPO, skipping the download..."
   fi
@@ -169,8 +168,6 @@ else
   git clone $VELOX_REPO -b $VELOX_BRANCH $VELOX_SOURCE_DIR
   cd $VELOX_SOURCE_DIR
   git checkout $TARGET_BUILD_COMMIT
-  git fetch https://github.com/facebookincubator/velox.git pull/12735/head
-  git rebase FETCH_HEAD
 fi
 
 #sync submodules
