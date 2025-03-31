@@ -32,11 +32,6 @@
 #endif
 #ifdef GLUTEN_ENABLE_GPU
 #include "velox/experimental/cudf/exec/ToCudf.h"
-#include "velox/experimental/cudf/connectors/parquet/ParquetConfig.h"
-#include "velox/experimental/cudf/connectors/parquet/ParquetConnector.h"
-#include "velox/experimental/cudf/connectors/parquet/ParquetDataSink.h"
-#include "velox/experimental/cudf/connectors/parquet/ParquetDataSource.h"
-#include "velox/experimental/cudf/connectors/parquet/ParquetTableHandle.h"
 #endif
 #include "compute/VeloxRuntime.h"
 #include "config/VeloxConfig.h"
@@ -159,17 +154,6 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
 
 #ifdef GLUTEN_ENABLE_GPU
 velox::cudf_velox::registerCudf();
-facebook::velox::connector::registerConnectorFactory(
-  std::make_shared<connector::parquet::ParquetConnectorFactory>());
-auto parquetConnector =
-    facebook::velox::connector::getConnectorFactory(
-        connector::parquet::ParquetConnectorFactory::kParquetConnectorName)
-        ->newConnector(
-            kParquetConnectorId,
-            std::make_shared<facebook::velox::config::ConfigBase>(
-                std::unordered_map<std::string, std::string>()),
-            ioExecutor_.get());
-facebook::velox::connector::registerConnector(parquetConnector);
 #endif
 
   initJolFilesystem();
