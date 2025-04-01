@@ -89,6 +89,24 @@ void veloxRuntimeReleaser(Runtime* runtime) {
 }
 } // namespace
 
+VeloxBackend::~VeloxBackend() {
+  if (dynamic_cast<facebook::velox::cache::AsyncDataCache*>(asyncDataCache_.get())) {
+    LOG(INFO) << asyncDataCache_->toString();
+    for (const auto& entry : std::filesystem::directory_iterator(cachePathPrefix_)) {
+      if (entry.path().filename().string().find(cacheFilePrefix_) != std::string::npos) {
+        LOG(INFO) << "Removing cache file " << entry.path().filename().string();
+        std::filesystem::remove(cachePathPrefix_ + "/" + entry.path().filename().string());
+      }
+    }
+    asyncDataCache_->shutdown();
+  }
+
+#ifdef GLUTEN_ENABLE_GPU
+  unregisterCudf();
+  LOG(INFO) << "Unregister the CUDF.";
+#endif
+}
+
 void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
   backendConf_ =
       std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(conf));
