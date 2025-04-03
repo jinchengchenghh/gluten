@@ -16,9 +16,11 @@
  */
 package org.apache.gluten.execution
 
+//import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.SplitInfo
+//import org.apache.iceberg.BaseTable
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, DynamicPruningExpression, Expression, Literal}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
@@ -26,7 +28,7 @@ import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.types.StructType
-import org.apache.iceberg.spark.source.GlutenIcebergSourceUtil
+import org.apache.iceberg.spark.source.{GlutenIcebergSourceUtil}
 
 case class IcebergScanTransformer(
     override val output: Seq[AttributeReference],
@@ -48,6 +50,23 @@ case class IcebergScanTransformer(
     IcebergScanTransformer.supportsBatchScan(scan)
   }
 
+//  override def doValidateInternal(): ValidationResult = {
+////    if (super.doValidateInternal().ok()) {
+////      val unsupport = table match {
+////        case t: SparkTable =>
+////          t.table() match {
+////            case t: BaseTable => !List("file:", "hdfs:", "viewfs").exists(f => t.location().startsWith(f))
+////            case _ => false
+////          }
+////        case _ => false
+////      }
+////      if (unsupport) {
+////        return ValidationResult.failed("not support the file system")
+////      }
+////    }
+//    ValidationResult.succeeded
+//  }
+
   override lazy val getPartitionSchema: StructType =
     GlutenIcebergSourceUtil.getReadPartitionSchema(scan)
 
@@ -59,6 +78,7 @@ case class IcebergScanTransformer(
   override lazy val fileFormat: ReadFileFormat = GlutenIcebergSourceUtil.getFileFormat(scan)
 
   override def getSplitInfosWithIndex: Seq[SplitInfo] = {
+    print("really execute 1")
     getPartitionsWithIndex.zipWithIndex.map {
       case (partitions, index) =>
         GlutenIcebergSourceUtil.genSplitInfo(partitions, index, getPartitionSchema)
@@ -66,6 +86,7 @@ case class IcebergScanTransformer(
   }
 
   override def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
+    print("really execute 2")
     val groupedPartitions = SparkShimLoader.getSparkShims.orderPartitions(
       this,
       scan,
