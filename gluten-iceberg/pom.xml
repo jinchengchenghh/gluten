@@ -22,6 +22,12 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>org.apache.gluten</groupId>
+            <artifactId>gluten-arrow</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_${scala.binary.version}</artifactId>
             <scope>provided</scope>

@@ -14,19 +14,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gluten.execution;
 
-package org.apache.gluten.component
-import org.apache.gluten.backendsapi.velox.VeloxBackend
-import org.apache.gluten.execution.{OffloadIcebergScan, OffloadIcebergWrite}
-import org.apache.gluten.extension.injector.Injector
+import org.apache.gluten.runtime.Runtime;
+import org.apache.gluten.runtime.RuntimeAware;
 
-class VeloxIcebergComponent extends Component {
-  override def name(): String = "velox-iceberg"
-  override def buildInfo(): Component.BuildInfo =
-    Component.BuildInfo("VeloxIceberg", "N/A", "N/A", "N/A")
-  override def dependencies(): Seq[Class[_ <: Component]] = classOf[VeloxBackend] :: Nil
-  override def injectRules(injector: Injector): Unit = {
-    OffloadIcebergScan.inject(injector)
-    OffloadIcebergWrite.inject(injector)
+public class IcebergWriteJniWrapper implements RuntimeAware {
+  private final Runtime runtime;
+
+  private IcebergWriteJniWrapper(Runtime runtime) {
+    this.runtime = runtime;
+  }
+
+  public static IcebergWriteJniWrapper  create(Runtime runtime) {
+    return new IcebergWriteJniWrapper (runtime);
+  }
+
+  // Return the native IcebergWriteJniWrapper handle
+  public native long init(long cSchema);
+
+  // Returns the json iceberg Datafile represent
+  public native String write(long wrapperHandle, long batch);
+
+  @Override
+  public long rtHandle() {
+    return runtime.getHandle();
   }
 }

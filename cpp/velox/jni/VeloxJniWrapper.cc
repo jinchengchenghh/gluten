@@ -463,6 +463,20 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJ
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
+  JNIEXPORT jlong JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_write( // NOLINT
+      JNIEnv* env,
+      jobject wrapper,
+      jlong handle) {
+  JNI_METHOD_START
+  auto ctx = getRuntime(env, wrapper);
+  auto runtime = dynamic_cast<VeloxRuntime*>(ctx);
+
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(handle);
+  auto newBatch = VeloxColumnarBatch::from(runtime->memoryManager()->getLeafMemoryPool().get(), batch);
+  return ctx->saveObject(newBatch);
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
 #ifdef __cplusplus
 }
 #endif

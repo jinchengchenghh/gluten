@@ -19,6 +19,7 @@
 
 #include "WholeStageResultIterator.h"
 #include "compute/Runtime.h"
+#include "iceberg/IcebergWriter.h"
 #include "memory/VeloxMemoryManager.h"
 #include "operators/serializer/VeloxColumnarBatchSerializer.h"
 #include "operators/serializer/VeloxColumnarToRowConverter.h"

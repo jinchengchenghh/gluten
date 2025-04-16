@@ -314,4 +314,9 @@ std::shared_ptr<ArrowWriter> VeloxRuntime::createArrowWriter(const std::string& 
   return std::make_shared<VeloxArrowWriter>(path, batchSize, memoryManager()->getLeafMemoryPool().get());
 }
 
+std::shared_ptr<IcebergWriter> VeloxRuntime::createIcebergWriter() {
+  auto veloxPool = memoryManager()->getLeafMemoryPool();
+  return std::make_shared<VeloxColumnarToRowConverter>(veloxPool, column2RowMemThreshold);
+}
+
 } // namespace gluten

@@ -167,7 +167,9 @@ set(VELOX_SRCS
     utils/Common.cc
     utils/ConfigExtractor.cc
     utils/VeloxArrowUtils.cc
-    utils/VeloxBatchResizer.cc)
+    utils/VeloxBatchResizer.cc
+    compute/iceberg/IcebergWriter.cpp
+    compute/iceberg/IcebergWriter.h)
 
 if(ENABLE_S3)
   find_package(ZLIB)

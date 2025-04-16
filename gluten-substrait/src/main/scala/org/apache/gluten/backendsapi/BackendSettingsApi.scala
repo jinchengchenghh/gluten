@@ -155,4 +155,6 @@ trait BackendSettingsApi {
 
   def supportCollectLimitExec(): Boolean = false
 
+  def supportAppendDataExec(): Boolean = false
+
 }

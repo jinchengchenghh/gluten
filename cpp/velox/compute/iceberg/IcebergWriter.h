@@ -1,5 +1,5 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
+* Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
  * The ASF licenses this file to You under the Apache License, Version 2.0
@@ -15,18 +15,22 @@
  * limitations under the License.
  */
 
-package org.apache.gluten.component
-import org.apache.gluten.backendsapi.velox.VeloxBackend
-import org.apache.gluten.execution.{OffloadIcebergScan, OffloadIcebergWrite}
-import org.apache.gluten.extension.injector.Injector
+#pragma once
 
-class VeloxIcebergComponent extends Component {
-  override def name(): String = "velox-iceberg"
-  override def buildInfo(): Component.BuildInfo =
-    Component.BuildInfo("VeloxIceberg", "N/A", "N/A", "N/A")
-  override def dependencies(): Seq[Class[_ <: Component]] = classOf[VeloxBackend] :: Nil
-  override def injectRules(injector: Injector): Unit = {
-    OffloadIcebergScan.inject(injector)
-    OffloadIcebergWrite.inject(injector)
-  }
+#include "memory/VeloxColumnarBatch.h"
+
+namespace gluten {
+
+class IcebergWriter {
+public:
+ IcebergWriter();
+
+ static std::unique_ptr<IcebergWriter> create() {
+  return std::make_unique<IcebergWriter>();
+ }
+
+ static std::string write();
+};
 }
+
+
