@@ -26,6 +26,7 @@
 #include "compute/ResultIterator.h"
 #include "compute/Runtime.h"
 #include "compute/VeloxPlanConverter.h"
+#include "compute/iceberg/IcebergWriter.h"
 #include "config/VeloxConfig.h"
 #include "operators/serializer/VeloxRowToColumnarConverter.h"
 #include "operators/writer/VeloxArrowWriter.h"
@@ -185,6 +186,15 @@ std::shared_ptr<RowToColumnarConverter> VeloxRuntime::createRow2ColumnarConverte
   return std::make_shared<VeloxRowToColumnarConverter>(cSchema, veloxPool);
 }
 
+std::shared_ptr<IcebergWriter> VeloxRuntime::createIcebergWriter(
+    ArrowSchema* cSchema,
+    int32_t format,
+    const std::string& outputDirectory,
+    facebook::velox::common::CompressionKind compressionKind) {
+  auto veloxPool = memoryManager()->getLeafMemoryPool();
+  return std::make_shared<IcebergWriter>(cSchema, format, outputDirectory, compressionKind, veloxPool);
+}
+
 std::shared_ptr<ShuffleWriter> VeloxRuntime::createShuffleWriter(
     int numPartitions,
     std::unique_ptr<PartitionWriter> partitionWriter,
@@ -312,11 +322,6 @@ std::shared_ptr<ArrowWriter> VeloxRuntime::createArrowWriter(const std::string& 
     batchSize = std::atol(it->second.c_str());
   }
   return std::make_shared<VeloxArrowWriter>(path, batchSize, memoryManager()->getLeafMemoryPool().get());
-}
-
-std::shared_ptr<IcebergWriter> VeloxRuntime::createIcebergWriter() {
-  auto veloxPool = memoryManager()->getLeafMemoryPool();
-  return std::make_shared<VeloxColumnarToRowConverter>(veloxPool, column2RowMemThreshold);
 }
 
 } // namespace gluten

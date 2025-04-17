@@ -16,14 +16,21 @@
  */
 package org.apache.spark.sql.execution.datasources.v2
 
+import org.apache.arrow.c.ArrowSchema
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.execution.IcebergWriteJniWrapper
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
+import org.apache.gluten.runtime.Runtimes
+import org.apache.gluten.utils.ArrowAbiUtil
 import org.apache.iceberg.spark.source.IcebergWriteUtil
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.write._
 import org.apache.spark.sql.execution.metric.{CustomMetrics, SQLMetric}
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
@@ -35,10 +42,25 @@ trait WritingColumnarBatchSparkTask[W <: DataWriter[ColumnarBatch]] extends Logg
 
   protected def write(writer: W, row: ColumnarBatch): Unit
 
-  def run(writerHandle: Long, jniWrapper: IcebergWriteJniWrapper,
+
+  def getJniWrapper(localSchema: StructType, timezoneId: String): (Long, IcebergWriteJniWrapper) = {
+    val schema = SparkArrowUtil.toArrowSchema(localSchema, timezoneId)
+    val arrowAlloc = ArrowBufferAllocators.contextInstance()
+    val cSchema = ArrowSchema.allocateNew(arrowAlloc)
+    ArrowAbiUtil.exportSchema(arrowAlloc, schema, cSchema)
+    val runtime = Runtimes.contextInstance(
+      BackendsApiManager.getBackendName, "IcebergWrite#write")
+    val jniWrapper = IcebergWriteJniWrapper.create(runtime)
+    val writer = jniWrapper.init(cSchema.memoryAddress())
+    cSchema.close()
+    (writer, jniWrapper)
+  }
+
+  def run(schema: StructType,
            context: TaskContext,
            iter: Iterator[ColumnarBatch],
            customMetrics: Map[String, SQLMetric]): DataWritingColumnarBatchSparkTaskResult = {
+    val(writerHandle, jniWrapper) = getJniWrapper(schema, SQLConf.get.sessionLocalTimeZone)
     val stageId = context.stageId()
     val stageAttempt = context.stageAttemptNumber()
     val partId = context.partitionId()

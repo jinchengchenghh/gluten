@@ -61,26 +61,12 @@ case class IcebergAppendDataExec( override val query: SparkPlan,
       s"${this.getClass.getSimpleName} doesn't support doExecute")
   }
 
-  def getJniWrapper(localSchema: StructType, timezoneId: String): (Long, IcebergWriteJniWrapper) = {
-    val schema = SparkArrowUtil.toArrowSchema(localSchema, timezoneId)
-    val arrowAlloc = ArrowBufferAllocators.contextInstance()
-    val cSchema = ArrowSchema.allocateNew(arrowAlloc)
-    ArrowAbiUtil.exportSchema(arrowAlloc, schema, cSchema)
-    val runtime = Runtimes.contextInstance(
-      BackendsApiManager.getBackendName, "IcebergWrite#write")
-    val jniWrapper = IcebergWriteJniWrapper.create(runtime)
-    val writer = jniWrapper.init(cSchema.memoryAddress())
-    cSchema.close()
-    (writer, jniWrapper)
-  }
-
   def writeBatch(writer: Long, jniWrapper: IcebergWriteJniWrapper, batch: ColumnarBatch): String = {
     val batchHandle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)
     jniWrapper.write(writer, batchHandle)
   }
 
-  protected def writeColumnarBatchWithV2(batchWrite: BatchWrite, writerHandle: Long,
-                                         jniWrapper: IcebergWriteJniWrapper): ColumnarBatch = {
+  protected def writeColumnarBatchWithV2(batchWrite: BatchWrite): ColumnarBatch = {
     val rdd: RDD[ColumnarBatch] = {
       val tempRdd = query.executeColumnar()
       // SPARK-23271 If we are attempting to write a zero partition rdd, create a dummy single
@@ -101,12 +87,12 @@ case class IcebergAppendDataExec( override val query: SparkPlan,
 
     // Avoid object not serializable issue.
     val writeMetrics: Map[String, SQLMetric] = customMetrics
-
+    val localSchema = schema
     try {
       sparkContext.runJob(
         rdd,
         (context: TaskContext, iter: Iterator[ColumnarBatch]) =>
-          task.run(writerHandle, jniWrapper, context, iter, writeMetrics),
+          task.run(localSchema, context, iter, writeMetrics),
         rdd.partitions.indices,
         (index, result: DataWritingColumnarBatchSparkTaskResult) => {
           val commitMessage = result.writerCommitMessage
@@ -142,8 +128,6 @@ case class IcebergAppendDataExec( override val query: SparkPlan,
   }
 
   protected def runColumnarBatch(): ColumnarBatch = {
-    val batchWrite = write.toBatch
-    val(writerHandle, jniWrapper) = getJniWrapper(schema, SQLConf.get.sessionLocalTimeZone)
     val writtenRows = writeColumnarBatchWithV2(write.toBatch, writerHandle, jniWrapper)
     refreshCache()
     writtenRows
@@ -154,23 +138,6 @@ case class IcebergAppendDataExec( override val query: SparkPlan,
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
 
     sparkContext.parallelize(result, 1)
-//    val localSchema = schema
-//    val timezoneId = SQLConf.get.sessionLocalTimeZone
-//    val batchWrite = write.toBatch
-//    val (writer, jniWrapper) = getJniWrapper(localSchema, timezoneId)
-//    val rdd = child.executeColumnar()
-//    val messages = ListBuffer[WriterCommitMessage]()
-//
-//    val newRdd = rdd.mapPartitions { batches => batches.map { batch =>
-//      val jsonMsg = writeBatch(writer, jniWrapper, batch)
-//      val dataFiles = parseDataFile(jsonMsg)
-//      val commit = IcebergWriteUtil.commitDataFiles(dataFiles.toArray)
-//      batchWrite.onDataWriterCommit(commit)
-//      messages.append(commit)
-//      batch
-//    }}
-//    batchWrite.commit(messages.toArray)
-//    newRdd
   }
 
   private def parseDataFile(json: String): Seq[DataFile] = {

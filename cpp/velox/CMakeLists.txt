@@ -131,7 +131,9 @@ set(VELOX_SRCS
     compute/VeloxRuntime.cc
     compute/VeloxPlanConverter.cc
     compute/WholeStageResultIterator.cc
+    compute/iceberg/IcebergFormat.cc
     compute/iceberg/IcebergPlanConverter.cc
+    compute/iceberg/IcebergWriter.cc
     jni/JniFileSystem.cc
     jni/JniUdf.cc
     jni/VeloxJniWrapper.cc
@@ -167,9 +169,7 @@ set(VELOX_SRCS
     utils/Common.cc
     utils/ConfigExtractor.cc
     utils/VeloxArrowUtils.cc
-    utils/VeloxBatchResizer.cc
-    compute/iceberg/IcebergWriter.cpp
-    compute/iceberg/IcebergWriter.h)
+    utils/VeloxBatchResizer.cc)
 
 if(ENABLE_S3)
   find_package(ZLIB)

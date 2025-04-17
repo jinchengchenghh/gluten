@@ -57,6 +57,12 @@ class VeloxRuntime final : public Runtime {
 
   std::shared_ptr<RowToColumnarConverter> createRow2ColumnarConverter(struct ArrowSchema* cSchema) override;
 
+  std::shared_ptr<IcebergWriter> createIcebergWriter(
+      ArrowSchema* cSchema,
+      int32_t format,
+      const std::string& outputDirectory,
+      facebook::velox::common::CompressionKind compressionKind);
+
   std::shared_ptr<ShuffleWriter> createShuffleWriter(
       int numPartitions,
       std::unique_ptr<PartitionWriter> partitionWriter,

@@ -1,5 +1,5 @@
 /*
-* Licensed to the Apache Software Foundation (ASF) under one or more
+ * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
  * The ASF licenses this file to You under the Apache License, Version 2.0
@@ -17,20 +17,31 @@
 
 #pragma once
 
+#include "compute/iceberg/IcebergFormat.h"
 #include "memory/VeloxColumnarBatch.h"
+#include "velox/connectors/hive/iceberg/IcebergDataSink.h"
 
 namespace gluten {
 
 class IcebergWriter {
-public:
- IcebergWriter();
+ public:
+  IcebergWriter(
+      ArrowSchema* cSchema,
+      int32_t format,
+      const std::string& outputDirectory,
+      facebook::velox::common::CompressionKind compressionKind,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> memoryPool);
 
- static std::unique_ptr<IcebergWriter> create() {
-  return std::make_unique<IcebergWriter>();
- }
+  void write(const VeloxColumnarBatch& batch);
 
- static std::string write();
+  std::vector<std::string> commit();
+
+ private:
+  facebook::velox::RowTypePtr rowType_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
+
+  std::unique_ptr<facebook::velox::connector::ConnectorQueryCtx> connectorQueryCtx_;
+
+  std::unique_ptr<facebook::velox::connector::hive::iceberg::IcebergDataSink> dataSink_;
 };
-}
-
-
+} // namespace gluten
