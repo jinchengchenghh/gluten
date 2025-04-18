@@ -104,12 +104,6 @@ IcebergWriter::IcebergWriter(
     std::shared_ptr<facebook::velox::memory::MemoryPool> memoryPool,
     std::shared_ptr<facebook::velox::memory::MemoryPool> connectorPool)
     : rowType_(rowType), pool_(memoryPool), connectorPool_(connectorPool) {
-  std::shared_ptr<facebook::velox::config::ConfigBase> connectorSessionProperties_ =
-      std::make_shared<facebook::velox::config::ConfigBase>(
-          std::unordered_map<std::string, std::string>(),
-          /*mutable=*/true);
-  std::shared_ptr<facebook::velox::connector::hive::HiveConfig> connectorConfig_ = std::make_shared<HiveConfig>(
-      std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>()));
   connectorQueryCtx_ = std::make_unique<connector::ConnectorQueryCtx>(
       pool_.get(),
       connectorPool_.get(),

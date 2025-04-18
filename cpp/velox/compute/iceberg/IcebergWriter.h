@@ -26,7 +26,7 @@ namespace gluten {
 class IcebergWriter {
  public:
   IcebergWriter(
-    const facebook::velox::RowTypePtr& rowType,
+      const facebook::velox::RowTypePtr& rowType,
       int32_t format,
       const std::string& outputDirectory,
       facebook::velox::common::CompressionKind compressionKind,
@@ -41,6 +41,13 @@ class IcebergWriter {
   facebook::velox::RowTypePtr rowType_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> connectorPool_;
+  std::shared_ptr<facebook::velox::connector::hive::HiveConfig> connectorConfig_ =
+      std::make_shared<facebook::velox::connector::hive::HiveConfig>(
+          std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>()));
+  std::shared_ptr<facebook::velox::config::ConfigBase> connectorSessionProperties_ =
+      std::make_shared<facebook::velox::config::ConfigBase>(
+          std::unordered_map<std::string, std::string>(),
+          /*mutable=*/true);
 
   std::unique_ptr<facebook::velox::connector::ConnectorQueryCtx> connectorQueryCtx_;
 

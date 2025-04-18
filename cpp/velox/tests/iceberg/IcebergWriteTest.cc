@@ -32,6 +32,8 @@ class VeloxIcebergWriteTest : public ::testing::Test, public test::VectorTestBas
     memory::MemoryManager::testingSetInstance({});
     parquet::registerParquetWriterFactory();
     Type::registerSerDe();
+    dwio::common::registerFileSinks();
+    filesystems::registerLocalFileSystem();
   }
   std::shared_ptr<exec::test::TempDirectoryPath> tmpDir_{exec::test::TempDirectoryPath::create()};
 
@@ -40,16 +42,17 @@ class VeloxIcebergWriteTest : public ::testing::Test, public test::VectorTestBas
 
 TEST_F(VeloxIcebergWriteTest, write) {
   auto vector = makeRowVector({makeFlatVector<int8_t>({1, 2}), makeFlatVector<int16_t>({1, 2})});
+  auto tmpPath = tmpDir_->getPath();
   auto writer = std::make_unique<IcebergWriter>(
       asRowType(vector->type()),
       1,
-      tmpDir_->getPath() + "/iceberg_write_test_table",
+      tmpPath + "/iceberg_write_test_table",
       common::CompressionKind::CompressionKind_ZSTD,
       pool_,
       connectorPool_);
   auto batch = VeloxColumnarBatch(vector);
   writer->write(batch);
   auto commitMessage = writer->commit();
-  EXPECT_EQ(commitMessage[0], "");
+  EXPECT_EQ(commitMessage.size(), 1);
 }
 } // namespace gluten

@@ -34,7 +34,7 @@ public class IcebergWriteJniWrapper implements RuntimeAware {
   // Returns the json iceberg Datafile represent
   public native void write(long writerHandle, long batch);
 
-  public native String[] commit();
+  public native String[] commit(long writerHandle);
 
   @Override
   public long rtHandle() {

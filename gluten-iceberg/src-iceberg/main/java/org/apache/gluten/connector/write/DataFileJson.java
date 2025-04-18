@@ -10,6 +10,18 @@ public class DataFileJson {
     public MetricsJson metrics;
 
     @JsonProperty
+    int partitionSpecId;
+
+    @JsonProperty
+    String content;
+
+    @JsonProperty
+    String referencedDataFile;
+
+    @JsonProperty
+    String partitionDataJson;
+
+    @JsonProperty
     public long fileSizeInBytes = -1L;
 
     public static class MetricsJson {

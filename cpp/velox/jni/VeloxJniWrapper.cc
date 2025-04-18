@@ -500,7 +500,8 @@ JNIEXPORT jobjectArray JNICALL Java_org_apache_gluten_execution_IcebergWriteJniW
   JNI_METHOD_START
   auto writer = ObjectStore::retrieve<IcebergWriter>(writerHandle);
   auto commitMessages = writer->commit();
-  jobjectArray ret = env->NewObjectArray(5, env->FindClass("java/lang/String"), env->NewStringUTF(""));
+  jobjectArray ret =
+      env->NewObjectArray(commitMessages.size(), env->FindClass("java/lang/String"), env->NewStringUTF(""));
   for (auto i = 0; i < commitMessages.size(); i++) {
     env->SetObjectArrayElement(ret, i, env->NewStringUTF(commitMessages[i].data()));
   }

@@ -16,14 +16,14 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.extension.columnar.transition.Convention.RowType
 import org.apache.iceberg.FileFormat
 import org.apache.iceberg.spark.source.IcebergWriteUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.connector.write.{BatchWrite, PhysicalWriteInfo, Write, WriterCommitMessage}
+import org.apache.spark.sql.connector.write.{BatchWrite, Write, WriterCommitMessage}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2._
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -31,9 +31,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.LongAccumulator
 import org.apache.spark.{SparkException, TaskContext}
 
-case class IcebergAppendDataExec(override val query: SparkPlan,
-                                 override val refreshCache: () => Unit,
-                                 override val write: Write) extends V2ExistingTableWriteExec with ValidatablePlan {
+case class IcebergAppendDataExec(query: SparkPlan,
+                                 refreshCache: () => Unit,
+                                 write: Write) extends V2ExistingTableWriteExec with ValidatablePlan {
 
   override protected def withNewChildInternal(newChild: SparkPlan): IcebergAppendDataExec =
     copy(query = newChild)
@@ -41,7 +41,6 @@ case class IcebergAppendDataExec(override val query: SparkPlan,
   def writingTaskBatch: WritingColumnarBatchSparkTask[_] = DataWritingColumnarBatchSparkTask
 
   override def doValidateInternal(): ValidationResult = {
-    print("print the schema " + write.getClass.getName)
     if (IcebergWriteUtil.hasUnsupportedDataType(write)) {
       return ValidationResult.failed("Contains unsupported data type")
     }
@@ -52,8 +51,10 @@ case class IcebergAppendDataExec(override val query: SparkPlan,
   }
 
   override def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException(
-      s"${this.getClass.getSimpleName} doesn't support doExecute")
+    result
+    sparkContext.parallelize(Nil, 1)
+//    throw new UnsupportedOperationException(
+//      s"${this.getClass.getSimpleName} doesn't support doExecute")
   }
 
   protected def writeColumnarBatchWithV2(batchWrite: BatchWrite): ColumnarBatch = {
@@ -139,9 +140,9 @@ case class IcebergAppendDataExec(override val query: SparkPlan,
     sparkContext.parallelize(result, 1)
   }
 
-  override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
+  override def batchType(): Convention.BatchType = Convention.BatchType.None
 
-  override def rowType0(): Convention.RowType = Convention.RowType.None
+  override def rowType0(): Convention.RowType = RowType.VanillaRow
 
 }
 
@@ -152,6 +153,3 @@ object IcebergAppendDataExec {
     )
   }
 }
-
-
-case class PhysicalWriteInfoImpl(numPartitions: Int) extends PhysicalWriteInfo

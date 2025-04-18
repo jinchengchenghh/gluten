@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.v2
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.{DeserializationFeature, ObjectMapper}
 import com.google.common.collect.ImmutableMap
 import org.apache.arrow.c.ArrowSchema
 import org.apache.gluten.backendsapi.BackendsApiManager
@@ -46,7 +46,7 @@ trait WritingColumnarBatchSparkTask[W <: DataWriter[ColumnarBatch]] extends Logg
 
   protected def write(writer: W, row: ColumnarBatch): Unit
 
-  def getJniWrapper(localSchema: StructType, format: Int,
+  private def getJniWrapper(localSchema: StructType, format: Int,
                     directory: String): (Long, IcebergWriteJniWrapper) = {
     val schema = SparkArrowUtil.toArrowSchema(localSchema, SQLConf.get.sessionLocalTimeZone)
     val arrowAlloc = ArrowBufferAllocators.contextInstance()
@@ -123,7 +123,10 @@ object StreamWriterCommitProgressUtil {
 
 case class ColumnarBatchDataWriter(writer: Long, jniWrapper: IcebergWriteJniWrapper, format: Int) extends DataWriter[ColumnarBatch] with Logging {
 
-  private val mapper = new ObjectMapper()
+  private val mapper = {
+    val mapper = new ObjectMapper()
+    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+  }
 
   override def write(batch: ColumnarBatch): Unit = {
     val batchHandle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)
@@ -131,7 +134,7 @@ case class ColumnarBatchDataWriter(writer: Long, jniWrapper: IcebergWriteJniWrap
   }
 
   override def commit: WriterCommitMessage = {
-    val dataFiles = jniWrapper.commit().map(d => parseDataFile(d))
+    val dataFiles = jniWrapper.commit(writer).map{d => parseDataFile(d)}
     IcebergWriteUtil.commitDataFiles(dataFiles)
   }
 
@@ -144,7 +147,6 @@ case class ColumnarBatchDataWriter(writer: Long, jniWrapper: IcebergWriteJniWrap
   }
 
   private def parseDataFile(json: String): DataFile = {
-
     val dataFile = mapper.readValue(json, classOf[DataFileJson])
     // TODO: add partition
     val metrics = new Metrics(dataFile.metrics.recordCount, ImmutableMap.of(), ImmutableMap.of(), ImmutableMap.of(), ImmutableMap.of())
