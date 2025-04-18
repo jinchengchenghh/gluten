@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution.datasources.v2
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.google.common.collect.ImmutableMap
 import org.apache.arrow.c.ArrowSchema
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
@@ -26,7 +27,7 @@ import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.utils.ArrowAbiUtil
 import org.apache.iceberg.spark.source.IcebergWriteUtil
-import org.apache.iceberg.{DataFile, DataFiles, FileFormat, Metrics}
+import org.apache.iceberg.{DataFile, DataFiles, FileFormat, Metrics, PartitionSpec}
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.write._
@@ -122,6 +123,8 @@ object StreamWriterCommitProgressUtil {
 
 case class ColumnarBatchDataWriter(writer: Long, jniWrapper: IcebergWriteJniWrapper, format: Int) extends DataWriter[ColumnarBatch] with Logging {
 
+  private val mapper = new ObjectMapper()
+
   override def write(batch: ColumnarBatch): Unit = {
     val batchHandle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)
     jniWrapper.write(writer, batchHandle)
@@ -141,12 +144,15 @@ case class ColumnarBatchDataWriter(writer: Long, jniWrapper: IcebergWriteJniWrap
   }
 
   private def parseDataFile(json: String): DataFile = {
-    val mapper = new ObjectMapper()
-    mapper.readValue(json, classOf[DataFileJson])
+
+    val dataFile = mapper.readValue(json, classOf[DataFileJson])
     // TODO: add partition
-    val builder = DataFiles.builder(null).withPath("")
+    val metrics = new Metrics(dataFile.metrics.recordCount, ImmutableMap.of(), ImmutableMap.of(), ImmutableMap.of(), ImmutableMap.of())
+    val builder = DataFiles.builder(PartitionSpec.unpartitioned())
+      .withPath(dataFile.path)
       .withFormat(getFileFormat)
-      .withFileSizeInBytes(-1).withMetrics(new Metrics())
+      .withFileSizeInBytes(dataFile.fileSizeInBytes)
+      .withMetrics(metrics)
     builder.build()
   }
   

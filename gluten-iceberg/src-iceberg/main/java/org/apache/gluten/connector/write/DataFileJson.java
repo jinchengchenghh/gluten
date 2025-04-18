@@ -4,11 +4,16 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class DataFileJson {
     @JsonProperty
-    String filePath;
+    public String path;
 
     @JsonProperty
-    long recordCount = -1L;
+    public MetricsJson metrics;
 
     @JsonProperty
-    long fileSizeInBytes = -1L;
+    public long fileSizeInBytes = -1L;
+
+    public static class MetricsJson {
+        @JsonProperty
+        public long recordCount = -1L;
+    }
 }
