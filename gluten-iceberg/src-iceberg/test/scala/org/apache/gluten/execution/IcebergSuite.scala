@@ -19,6 +19,7 @@ package org.apache.gluten.execution
 import org.apache.gluten.config.GlutenConfig
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.execution.CommandResultExec
 
 abstract class IcebergSuite extends WholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -63,15 +64,17 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
       spark.sql("""
                   |create table if not exists iceberg_tb2(a int) using iceberg
                   |""".stripMargin)
-      spark.sql("""
-                  |insert into table iceberg_tb2 values(1)
+      val df = spark.sql("""
+                  |insert into table iceberg_tb2 values(1098)
                   |""".stripMargin)
-
-      runQueryAndCompare("""
-                           |select * from iceberg_tb2;
-                           |""".stripMargin) {
-        checkGlutenOperatorMatch[IcebergScanTransformer]
-      }
+      assert(df.queryExecution.executedPlan
+        .asInstanceOf[CommandResultExec].commandPhysicalPlan.isInstanceOf[IcebergAppendDataExec])
+      val selectDf = spark.sql("""
+                                 |select * from iceberg_tb2;
+                                 |""".stripMargin)
+      val result = selectDf.collect()
+      assert(result.length == 1)
+      assert(result(0).get(0) == 1098)
     }
   }
 

@@ -53,8 +53,6 @@ case class IcebergAppendDataExec(query: SparkPlan,
   override def doExecute(): RDD[InternalRow] = {
     result
     sparkContext.parallelize(Nil, 1)
-//    throw new UnsupportedOperationException(
-//      s"${this.getClass.getSimpleName} doesn't support doExecute")
   }
 
   protected def writeColumnarBatchWithV2(batchWrite: BatchWrite): ColumnarBatch = {
@@ -135,10 +133,6 @@ case class IcebergAppendDataExec(query: SparkPlan,
   }
 
   private lazy val result: Seq[ColumnarBatch] = runColumnarBatch()
-
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    sparkContext.parallelize(result, 1)
-  }
 
   override def batchType(): Convention.BatchType = Convention.BatchType.None
 
