@@ -193,7 +193,9 @@ std::shared_ptr<IcebergWriter> VeloxRuntime::createIcebergWriter(
     facebook::velox::common::CompressionKind compressionKind) {
   auto veloxPool = memoryManager()->getLeafMemoryPool();
   auto connectorPool = memoryManager()->getAggregateMemoryPool();
-  return std::make_shared<IcebergWriter>(cSchema, format, outputDirectory, compressionKind, veloxPool, connectorPool);
+  auto rowType = asRowType(importFromArrow(*cSchema));
+  ArrowSchemaRelease(cSchema);
+  return std::make_shared<IcebergWriter>(rowType, format, outputDirectory, compressionKind, veloxPool, connectorPool);
 }
 
 std::shared_ptr<ShuffleWriter> VeloxRuntime::createShuffleWriter(

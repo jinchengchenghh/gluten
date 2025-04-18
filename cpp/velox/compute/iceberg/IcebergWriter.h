@@ -26,7 +26,7 @@ namespace gluten {
 class IcebergWriter {
  public:
   IcebergWriter(
-      ArrowSchema* cSchema,
+    const facebook::velox::RowTypePtr& rowType,
       int32_t format,
       const std::string& outputDirectory,
       facebook::velox::common::CompressionKind compressionKind,
