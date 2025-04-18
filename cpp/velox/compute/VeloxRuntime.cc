@@ -192,7 +192,8 @@ std::shared_ptr<IcebergWriter> VeloxRuntime::createIcebergWriter(
     const std::string& outputDirectory,
     facebook::velox::common::CompressionKind compressionKind) {
   auto veloxPool = memoryManager()->getLeafMemoryPool();
-  return std::make_shared<IcebergWriter>(cSchema, format, outputDirectory, compressionKind, veloxPool);
+  auto connectorPool = memoryManager()->getAggregateMemoryPool();
+  return std::make_shared<IcebergWriter>(cSchema, format, outputDirectory, compressionKind, veloxPool, connectorPool);
 }
 
 std::shared_ptr<ShuffleWriter> VeloxRuntime::createShuffleWriter(

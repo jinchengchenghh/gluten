@@ -22,19 +22,19 @@ import org.apache.gluten.runtime.RuntimeAware;
 public class IcebergWriteJniWrapper implements RuntimeAware {
   private final Runtime runtime;
 
-  private IcebergWriteJniWrapper(Runtime runtime) {
+  public IcebergWriteJniWrapper(Runtime runtime) {
     this.runtime = runtime;
   }
 
-  public static IcebergWriteJniWrapper  create(Runtime runtime) {
-    return new IcebergWriteJniWrapper (runtime);
-  }
-
   // Return the native IcebergWriteJniWrapper handle
-  public native long init(long cSchema);
+  public native long init(long cSchema, int format,
+                          String directory,
+                          String codec);
 
   // Returns the json iceberg Datafile represent
-  public native String write(long wrapperHandle, long batch);
+  public native void write(long writerHandle, long batch);
+
+  public native String[] commit();
 
   @Override
   public long rtHandle() {

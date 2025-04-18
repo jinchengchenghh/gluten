@@ -58,6 +58,23 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
+  test("iceberg insert") {
+    withTable("iceberg_tb2") {
+      spark.sql("""
+                  |create table if not exists iceberg_tb2(a int) using iceberg
+                  |""".stripMargin)
+      spark.sql("""
+                  |insert into table iceberg_tb2 values(1)
+                  |""".stripMargin)
+
+      runQueryAndCompare("""
+                           |select * from iceberg_tb2;
+                           |""".stripMargin) {
+        checkGlutenOperatorMatch[IcebergScanTransformer]
+      }
+    }
+  }
+
   testWithSpecifiedSparkVersion("iceberg bucketed join", Some("3.4")) {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"

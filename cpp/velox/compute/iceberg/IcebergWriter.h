@@ -30,7 +30,8 @@ class IcebergWriter {
       int32_t format,
       const std::string& outputDirectory,
       facebook::velox::common::CompressionKind compressionKind,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> memoryPool);
+      std::shared_ptr<facebook::velox::memory::MemoryPool> memoryPool,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> connectorPool);
 
   void write(const VeloxColumnarBatch& batch);
 
@@ -39,6 +40,7 @@ class IcebergWriter {
  private:
   facebook::velox::RowTypePtr rowType_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> connectorPool_;
 
   std::unique_ptr<facebook::velox::connector::ConnectorQueryCtx> connectorQueryCtx_;
 

@@ -1,27 +1,51 @@
 package org.apache.iceberg.spark.source
 
 import org.apache.iceberg.spark.source.SparkWrite.TaskCommit
-import org.apache.iceberg.{DataFile, FileFormat, Schema}
-import org.apache.spark.sql.connector.write.{Write, WriterCommitMessage}
+import org.apache.iceberg.{DataFile, FileFormat, Schema, Table}
+import org.apache.spark.sql.connector.write.{BatchWrite, Write, WriterCommitMessage}
 
 object IcebergWriteUtil {
-  def isSparkWrite(write: Write): Boolean = {
-    write.isInstanceOf[SparkWrite]
+  def isBatchAppend(write: BatchWrite): Boolean = {
+    write.getClass.getSimpleName.equals("BatchAppend")
   }
 
-  def supportedDataType(write: Write): Boolean = {
-    write.asInstanceOf[SparkWrite]
+  def hasUnsupportedDataType(write: Write): Boolean = {
+    getWriteSchema(write).columns()
     // get the private field writeSchema
-    true
+    false
   }
 
-  def getWriteSchema(write: Write): Schema = {
-    write.asInstanceOf[SparkWrite]
-    null
+  private def getWriteSchema(write: Write): Schema = {
+    val field = classOf[SparkWrite].getDeclaredField("writeSchema")
+    field.setAccessible(true)
+    field.get(write).asInstanceOf[Schema]
   }
 
-  def getFileFormat(write: Write): FileFormat = {
-    FileFormat.PARQUET
+  def getTable(write: Write): Table = {
+    val field = classOf[SparkWrite].getDeclaredField("table")
+    field.setAccessible(true)
+    field.get(write).asInstanceOf[Table]
+  }
+
+  def getSparkWrite(write: BatchWrite): SparkWrite = {
+    // Access the enclosing SparkWrite instance from BatchAppend
+    val outerInstanceField = write.getClass.getDeclaredField("this$0")
+    outerInstanceField.setAccessible(true)
+    outerInstanceField.get(write).asInstanceOf[SparkWrite]
+  }
+
+  def getFileFormat(write: BatchWrite): FileFormat = {
+    val sparkWrite = getSparkWrite(write)
+    val field = classOf[SparkWrite].getDeclaredField("format")
+    field.setAccessible(true)
+    field.get(sparkWrite).asInstanceOf[FileFormat]
+  }
+
+  def getDirectory(write: BatchWrite): String = {
+    val sparkWrite = getSparkWrite(write)
+    val field = classOf[SparkWrite].getDeclaredField("table")
+    field.setAccessible(true)
+    getTable(sparkWrite).locationProvider().newDataLocation("")
   }
 
   // Similar to the UnpartitionedDataWriter#commit

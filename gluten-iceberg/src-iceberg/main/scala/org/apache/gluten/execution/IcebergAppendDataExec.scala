@@ -16,42 +16,37 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.arrow.c.ArrowSchema
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
-import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
-import org.apache.gluten.runtime.Runtimes
-import org.apache.gluten.utils.ArrowAbiUtil
+import org.apache.iceberg.FileFormat
 import org.apache.iceberg.spark.source.IcebergWriteUtil
-import org.apache.iceberg.{DataFile, DataFiles, Metrics}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.write.{BatchWrite, PhysicalWriteInfo, Write, WriterCommitMessage}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2._
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{StructField, StructType}
-import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.LongAccumulator
 import org.apache.spark.{SparkException, TaskContext}
 
-case class IcebergAppendDataExec( override val query: SparkPlan,
-                                  override val refreshCache: () => Unit,
-                                  override val write: Write) extends V2ExistingTableWriteExec with ValidatablePlan {
+case class IcebergAppendDataExec(override val query: SparkPlan,
+                                 override val refreshCache: () => Unit,
+                                 override val write: Write) extends V2ExistingTableWriteExec with ValidatablePlan {
 
   override protected def withNewChildInternal(newChild: SparkPlan): IcebergAppendDataExec =
     copy(query = newChild)
 
-  def writingTaskBatch:WritingColumnarBatchSparkTask[_] = DataWritingColumnarBatchSparkTask
+  def writingTaskBatch: WritingColumnarBatchSparkTask[_] = DataWritingColumnarBatchSparkTask
 
   override def doValidateInternal(): ValidationResult = {
-    if (IcebergWriteUtil.supportedDataType(write)) {
+    print("print the schema " + write.getClass.getName)
+    if (IcebergWriteUtil.hasUnsupportedDataType(write)) {
       return ValidationResult.failed("Contains unsupported data type")
+    }
+    if (IcebergWriteUtil.getTable(write).spec().isPartitioned) {
+      return ValidationResult.failed("Not support write partition table")
     }
     ValidationResult.succeeded
   }
@@ -59,11 +54,6 @@ case class IcebergAppendDataExec( override val query: SparkPlan,
   override def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException(
       s"${this.getClass.getSimpleName} doesn't support doExecute")
-  }
-
-  def writeBatch(writer: Long, jniWrapper: IcebergWriteJniWrapper, batch: ColumnarBatch): String = {
-    val batchHandle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)
-    jniWrapper.write(writer, batchHandle)
   }
 
   protected def writeColumnarBatchWithV2(batchWrite: BatchWrite): ColumnarBatch = {
@@ -87,12 +77,14 @@ case class IcebergAppendDataExec( override val query: SparkPlan,
 
     // Avoid object not serializable issue.
     val writeMetrics: Map[String, SQLMetric] = customMetrics
-    val localSchema = schema
+    val localSchema = query.schema
+    val fileFormat = getFileFormat(IcebergWriteUtil.getFileFormat(batchWrite))
+    val directory = IcebergWriteUtil.getDirectory(batchWrite)
     try {
       sparkContext.runJob(
         rdd,
         (context: TaskContext, iter: Iterator[ColumnarBatch]) =>
-          task.run(localSchema, context, iter, writeMetrics),
+          task.run(localSchema, fileFormat, directory, context, iter, writeMetrics),
         rdd.partitions.indices,
         (index, result: DataWritingColumnarBatchSparkTaskResult) => {
           val commitMessage = result.writerCommitMessage
@@ -127,25 +119,24 @@ case class IcebergAppendDataExec( override val query: SparkPlan,
     null
   }
 
-  protected def runColumnarBatch(): ColumnarBatch = {
-    val writtenRows = writeColumnarBatchWithV2(write.toBatch, writerHandle, jniWrapper)
-    refreshCache()
-    writtenRows
+  private def getFileFormat(format: FileFormat): Int = {
+    format match {
+      case FileFormat.PARQUET => 1;
+      case FileFormat.ORC => 0;
+      case _ => throw new UnsupportedOperationException()
+    }
   }
 
-  private lazy val result: Seq[ColumnarBatch] = Seq()
+  protected def runColumnarBatch(): Seq[ColumnarBatch] = {
+    writeColumnarBatchWithV2(write.toBatch)
+    refreshCache()
+    Seq.empty[ColumnarBatch]
+  }
+
+  private lazy val result: Seq[ColumnarBatch] = runColumnarBatch()
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-
     sparkContext.parallelize(result, 1)
-  }
-
-  private def parseDataFile(json: String): Seq[DataFile] = {
-    // TODO: add partition
-    val builder = DataFiles.builder(null).withPath("")
-      .withFormat(IcebergWriteUtil.getFileFormat(write))
-      .withFileSizeInBytes(-1).withMetrics(new Metrics())
-    Seq(builder.build())
   }
 
   override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
@@ -160,12 +151,7 @@ object IcebergAppendDataExec {
       original.query, original.refreshCache, original.write
     )
   }
-
-  private def toStructType(schema: Seq[Attribute]): StructType = {
-    StructType(schema.map(a => StructField(a.name, a.dataType, a.nullable, a.metadata)))
-  }
 }
-
 
 
 case class PhysicalWriteInfoImpl(numPartitions: Int) extends PhysicalWriteInfo

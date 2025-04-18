@@ -16,14 +16,17 @@
  */
 package org.apache.spark.sql.execution.datasources.v2
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.arrow.c.ArrowSchema
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.connector.write.DataFileJson
 import org.apache.gluten.execution.IcebergWriteJniWrapper
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.utils.ArrowAbiUtil
 import org.apache.iceberg.spark.source.IcebergWriteUtil
+import org.apache.iceberg.{DataFile, DataFiles, FileFormat, Metrics}
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.write._
@@ -42,31 +45,33 @@ trait WritingColumnarBatchSparkTask[W <: DataWriter[ColumnarBatch]] extends Logg
 
   protected def write(writer: W, row: ColumnarBatch): Unit
 
-
-  def getJniWrapper(localSchema: StructType, timezoneId: String): (Long, IcebergWriteJniWrapper) = {
-    val schema = SparkArrowUtil.toArrowSchema(localSchema, timezoneId)
+  def getJniWrapper(localSchema: StructType, format: Int,
+                    directory: String): (Long, IcebergWriteJniWrapper) = {
+    val schema = SparkArrowUtil.toArrowSchema(localSchema, SQLConf.get.sessionLocalTimeZone)
     val arrowAlloc = ArrowBufferAllocators.contextInstance()
     val cSchema = ArrowSchema.allocateNew(arrowAlloc)
     ArrowAbiUtil.exportSchema(arrowAlloc, schema, cSchema)
     val runtime = Runtimes.contextInstance(
       BackendsApiManager.getBackendName, "IcebergWrite#write")
-    val jniWrapper = IcebergWriteJniWrapper.create(runtime)
-    val writer = jniWrapper.init(cSchema.memoryAddress())
+    val jniWrapper = new IcebergWriteJniWrapper(runtime)
+    // TODO: support the codec
+    val writer = jniWrapper.init(cSchema.memoryAddress(), format, directory, "none")
     cSchema.close()
     (writer, jniWrapper)
   }
 
-  def run(schema: StructType,
+  def run(schema: StructType, format: Int,
+          directory: String,
            context: TaskContext,
            iter: Iterator[ColumnarBatch],
            customMetrics: Map[String, SQLMetric]): DataWritingColumnarBatchSparkTaskResult = {
-    val(writerHandle, jniWrapper) = getJniWrapper(schema, SQLConf.get.sessionLocalTimeZone)
+    val(writerHandle, jniWrapper) = getJniWrapper(schema, format, directory)
     val stageId = context.stageId()
     val stageAttempt = context.stageAttemptNumber()
     val partId = context.partitionId()
     val taskId = context.taskAttemptId()
     val attemptId = context.attemptNumber()
-    val dataWriter = ColumnarBatchDataWriter(writerHandle, jniWrapper).asInstanceOf[W]
+    val dataWriter = ColumnarBatchDataWriter(writerHandle, jniWrapper, format).asInstanceOf[W]
 
     var count = 0
     // write the data and commit this writer.
@@ -76,7 +81,7 @@ trait WritingColumnarBatchSparkTask[W <: DataWriter[ColumnarBatch]] extends Logg
         val batch = iter.next()
         // Count is here.
         count += batch.numRows()
-        write(dataWriter, iter.next())
+        write(dataWriter, batch)
       }
 
       CustomMetrics.updateMetrics(dataWriter.currentMetricsValues, customMetrics)
@@ -115,7 +120,7 @@ object StreamWriterCommitProgressUtil {
   }
 }
 
-case class ColumnarBatchDataWriter(writer: Long, jniWrapper: IcebergWriteJniWrapper) extends DataWriter[ColumnarBatch] with Logging {
+case class ColumnarBatchDataWriter(writer: Long, jniWrapper: IcebergWriteJniWrapper, format: Int) extends DataWriter[ColumnarBatch] with Logging {
 
   override def write(batch: ColumnarBatch): Unit = {
     val batchHandle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)
@@ -123,14 +128,33 @@ case class ColumnarBatchDataWriter(writer: Long, jniWrapper: IcebergWriteJniWrap
   }
 
   override def commit: WriterCommitMessage = {
-    IcebergWriteUtil.commitDataFiles(Array.empty)
+    val dataFiles = jniWrapper.commit().map(d => parseDataFile(d))
+    IcebergWriteUtil.commitDataFiles(dataFiles)
   }
 
   override def abort(): Unit = {
-    logInfo("Abort the data writer")
+    logInfo("Abort the ColumnarBatchDataWriter")
   }
 
   override def close(): Unit = {
     logDebug("Close the ColumnarBatchDataWriter")
+  }
+
+  private def parseDataFile(json: String): DataFile = {
+    val mapper = new ObjectMapper()
+    mapper.readValue(json, classOf[DataFileJson])
+    // TODO: add partition
+    val builder = DataFiles.builder(null).withPath("")
+      .withFormat(getFileFormat)
+      .withFileSizeInBytes(-1).withMetrics(new Metrics())
+    builder.build()
+  }
+  
+  private def getFileFormat: FileFormat = {
+    format match {
+      case 0 => FileFormat.ORC
+      case 1 => FileFormat.PARQUET
+      case _ => throw new UnsupportedOperationException()
+    }
   }
 }
