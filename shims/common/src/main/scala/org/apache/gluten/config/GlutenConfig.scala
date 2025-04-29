@@ -1740,6 +1740,6 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.cudf")
       .doc("Enable or disable cudf support. This is an experimental feature.")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
 }
