@@ -34,7 +34,7 @@ object Constants {
     .set("spark.sql.parquet.enableVectorizedReader", "true")
     .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
     .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-    .set("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")
+    .set("spark.sql.optimizer.runtime.bloomFilter.enabled", "false")
     .set("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "0")
     .set(
       "spark.gluten.sql.columnar.physicalJoinOptimizeEnable",
@@ -53,7 +53,7 @@ object Constants {
     .set("spark.shuffle.service.enabled", "false")
     .set("spark.sql.adaptive.localShuffleReader.enabled", "false")
     .set("spark.dynamicAllocation.enabled", "false")
-    .set("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")
+    .set("spark.sql.optimizer.runtime.bloomFilter.enabled", "false")
     .set("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "0")
     .set(
       "spark.gluten.sql.columnar.physicalJoinOptimizeEnable",
@@ -74,7 +74,7 @@ object Constants {
     .set("spark.shuffle.service.enabled", "false")
     .set("spark.sql.adaptive.localShuffleReader.enabled", "false")
     .set("spark.dynamicAllocation.enabled", "false")
-    .set("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")
+    .set("spark.sql.optimizer.runtime.bloomFilter.enabled", "false")
     .set("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "0")
     .set("spark.gluten.sql.columnar.physicalJoinOptimizeEnable", "false")
 
