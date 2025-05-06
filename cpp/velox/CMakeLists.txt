@@ -351,7 +351,7 @@ if(ENABLE_GPU)
     DESTINATION ${root_directory}/releases)
   target_link_libraries(velox PUBLIC facebook::velox::velox_cudf_exec facebook::velox::velox_cudf_vector)
   target_link_libraries(velox
-                        PRIVATE ${VELOX_BUILD_PATH}/_deps/cudf-build/libcudf.so)
+                        PRIVATE ${root_directory}/releases/libcudf.so)
 endif()
 
 add_custom_command(
