@@ -207,6 +207,13 @@ class VeloxListenerApi extends ListenerApi with Logging {
       val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME.key, "gluten")
       loader.load(s"$platformLibDir/${System.mapLibraryName(baseLibName)}")
       loader.load(s"$platformLibDir/${System.mapLibraryName(VeloxBackend.BACKEND_NAME)}")
+      if (
+        conf.getBoolean(
+          GlutenConfig.COLUMNAR_CUDF_ENABLED.key,
+          GlutenConfig.COLUMNAR_CUDF_ENABLED.defaultValue.get)
+      ) {
+        loader.load(s"$platformLibDir/${System.mapLibraryName("cudf")}")
+      }
     }
 
     // Initial native backend with configurations.
