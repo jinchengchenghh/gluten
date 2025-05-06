@@ -76,7 +76,9 @@ class TpcdsSuite(
 
   override private[integration] def createDataGen(
       scale: Double,
-      genPartitionedData: Boolean): DataGen =
+      genPartitionedData: Boolean): DataGen = {
+    val path = dataWritePath(scale, genPartitionedData)
+    println(s"data write path $path")
     new TpcdsDataGen(
       sessionSwitcher.spark(),
       scale,
@@ -84,6 +86,8 @@ class TpcdsSuite(
       dataWritePath(scale, genPartitionedData),
       typeModifiers(),
       genPartitionedData)
+  }
+
 
   override private[integration] def queryResource(): String = {
     "/tpcds-queries"

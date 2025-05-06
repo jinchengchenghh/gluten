@@ -95,6 +95,7 @@ class TpcdsDataGen(
     // dwrf support was temporarily dropped since it impacts data gen skipping strategy.
     // Better design is required to re-enable it
     val tablePath = dir + File.separator + tableName
+    println(s"table path is $tablePath")
     spark
       .range(0, partitions, 1L, partitions)
       .mapPartitions { itr =>

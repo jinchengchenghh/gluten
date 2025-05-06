@@ -74,13 +74,16 @@ class TpchSuite(
 
   override private[integration] def createDataGen(
       scale: Double,
-      genPartitionedData: Boolean): DataGen =
+      genPartitionedData: Boolean): DataGen = {
+    val path = dataWritePath(scale, genPartitionedData)
+    println(s"data write path $path")
     new TpchDataGen(
       sessionSwitcher.spark(),
       scale,
       shufflePartitions,
       dataWritePath(scale, genPartitionedData),
       typeModifiers())
+  }
 
   override private[integration] def queryResource(): String = {
     "/tpch-queries"

@@ -124,6 +124,7 @@ public class BaseMixin {
     final MetricMapper testMetricMapper = pickMetricMapper(preset);
 
     final Suite suite;
+    System.out.println("dataDir: " + dataDir);
     switch (benchmarkType) {
       case "h":
         suite = new TpchSuite(runModeEnumeration.getSparkMasterUrl(), actions, testConf,
