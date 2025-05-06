@@ -84,7 +84,7 @@ public class JniLibLoader {
       File file = moveToWorkDir(workDir, libPath);
       loadWithLink(file.getAbsolutePath(), null);
       loadedLibraries.add(libPath);
-      LOG.info("Successfully loaded library {}", libPath);
+      LOG.warn("Successfully loaded library {}", libPath);
     } catch (IOException e) {
       throw new GlutenException(e);
     }
