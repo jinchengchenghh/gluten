@@ -1,0 +1,68 @@
+
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include "CudfPlanValidator.h"
+#include "velox/compute/VeloxPlanConverter.h"
+#include "velox/exec/Task.h"
+#include "velox/experimental/cudf/exec/ToCudf.h"
+#include "velox/memory/VeloxMemoryManager.h"
+
+#include "velox/core/PlanNode.h"
+
+using namespace facebook;
+
+namespace gluten {
+bool CudfPlanValidator::validate(VeloxMemoryManager* memoryManager, const ::substrait::Plan& substraitPlan) {
+  auto veloxMemoryPool = gluten::defaultLeafVeloxMemoryPool();
+  std::vector<::substrait::ReadRel_LocalFiles> localFiles;
+  VeloxPlanConverter veloxPlanConverter(veloxMemoryPool.get(), sessionConf, std::nullopt, true);
+  auto planNode = veloxPlanConverter.toVeloxPlan(substraitPlan, localFiles);
+  std::unordered_set<velox::core::PlanNodeId> emptySet;
+  velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
+  std::unordered_map<std::string, std::string> configValues;
+  std::unordered_map<std::string, std::shared_ptr<velox::config::ConfigBase>> connectorConfigs;
+  static std::atomic<uint32_t> vtId{0};
+  std::shared_ptr<velox::core::QueryCtx> queryCtx = velox::core::QueryCtx::create(
+      nullptr,
+      facebook::velox::core::QueryConfig{configValues},
+      connectorConfigs,
+      gluten::VeloxBackend::get()->getAsyncDataCache(),
+      memoryManager->getAggregateMemoryPool(),
+      nullptr,
+      fmt::format("Gluten_Cudf_Validation_VTID_{}", std::to_string(vtId++)));
+  std::shared_ptr<facebook::velox::exec::Task> task = velox::exec::Task::create(
+      fmt::format("Gluten_Cudf_Validation_VTID_{}", std::to_string(vtId++)),
+      std::move(planFragment),
+      0,
+      std::move(queryCtx),
+      velox::exec::Task::ExecutionMode::kSerial);
+  auto state = velox::cudf_velox::CompileState(*(task->getDriverFactory()), *(task->getDriver()));
+  auto res = state.compile();
+  if (res.first) {
+    for (const auto* op : res.second) {
+      if (dynamic_cast<const exec::TableScan*>(op) != nullptr) {
+        continue;
+      }
+      LOG(INFO) << "Operator " << op->operatorType() << " is not supported in cudf";
+      return false;
+    }
+  }
+  return res.first;
+}
+
+} // namespace gluten

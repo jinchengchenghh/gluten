@@ -133,6 +133,9 @@ trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
 
 /** Base interface for a query plan that can be interpreted to Substrait representation. */
 trait TransformSupport extends ValidatablePlan {
+
+  protected var cudfPrefix = ""
+
   override def batchType(): Convention.BatchType = {
     BackendsApiManager.getSettings.primaryBatchType
   }
@@ -145,6 +148,8 @@ trait TransformSupport extends ValidatablePlan {
     throw new UnsupportedOperationException(
       s"${this.getClass.getSimpleName} doesn't support doExecute")
   }
+
+  override def nodeName: String = cudfPrefix + super.nodeName
 
   /**
    * Returns all the RDDs of ColumnarBatch which generates the input rows.
@@ -198,6 +203,10 @@ trait TransformSupport extends ValidatablePlan {
 
   // When true, it will not generate relNode, nor will it generate native metrics.
   def isNoop: Boolean = false
+
+  def setIsCudf: Unit = {
+    cudfPrefix = "Cudf"
+  }
 }
 
 trait LeafTransformSupport extends TransformSupport with LeafExecNode {
