@@ -151,7 +151,6 @@ const uint32_t kGlogSeverityLevelDefault = 1;
 const std::string kCudfEnabled = "spark.gluten.sql.columnar.cudf";
 const bool kCudfEnabledDefault = "false";
 static constexpr const char* kCudfEngine = "cudf.engine";
-static const std::string kCudfParquetConnectorId = "test-parquet-cudf";
 #endif
 
 // Query trace

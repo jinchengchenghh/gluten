@@ -31,7 +31,6 @@
 #include "utils/qpl/QplCodec.h"
 #endif
 #ifdef GLUTEN_ENABLE_GPU
-#include "velox/experimental/cudf/connectors/parquet/ParquetConnector.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
 #endif
 #include "compute/VeloxRuntime.h"
@@ -163,6 +162,7 @@ void VeloxBackend::init(
   if (backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
     velox::cudf_velox::registerCudf();
   }
+
 #endif
 
   initJolFilesystem();
@@ -328,20 +328,6 @@ void VeloxBackend::initConnector() {
       kHiveConnectorId,
       std::make_shared<facebook::velox::config::ConfigBase>(std::move(connectorConfMap)),
       ioExecutor_.get()));
-#ifdef GLUTEN_ENABLE_GPU
-  if (backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
-    velox::connector::registerConnectorFactory(
-        std::make_shared<velox::cudf_velox::connector::parquet::ParquetConnectorFactory>());
-    auto parquetConnector =
-        velox::connector::getConnectorFactory(
-            velox::cudf_velox::connector::parquet::ParquetConnectorFactory::kParquetConnectorName)
-            ->newConnector(
-                kCudfParquetConnectorId,
-                std::make_shared<velox::config::ConfigBase>(std::unordered_map<std::string, std::string>()),
-                ioExecutor_.get());
-    velox::connector::registerConnector(parquetConnector);
-  }
-#endif
 }
 
 void VeloxBackend::initUdf() {

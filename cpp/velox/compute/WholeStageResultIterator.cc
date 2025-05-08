@@ -145,31 +145,6 @@ WholeStageResultIterator::WholeStageResultIterator(
             std::unordered_map<std::string, std::string>(),
             properties[idx]);
       } else {
-#ifdef GLUTEN_ENABLE_GPU
-        // Now the GPU parquet connector does not support read file with start and length, so we cannot use it.
-        if (veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault) &&
-            format == velox::dwio::common::FileFormat::PARQUET) {
-          split = std::make_shared<velox::cudf_velox::connector::parquet::ParquetConnectorSplit>(
-              kCudfParquetConnectorId, paths[idx], 0);
-        } else {
-          split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
-              kHiveConnectorId,
-              paths[idx],
-              format,
-              starts[idx],
-              lengths[idx],
-              partitionKeys,
-              std::nullopt /*tableBucketName*/,
-              std::unordered_map<std::string, std::string>(),
-              nullptr,
-              std::unordered_map<std::string, std::string>(),
-              std::unordered_map<std::string, std::string>(),
-              0,
-              true,
-              metadataColumn,
-              properties[idx]);
-        }
-#else
         split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
             kHiveConnectorId,
             paths[idx],
@@ -186,7 +161,6 @@ WholeStageResultIterator::WholeStageResultIterator(
             true,
             metadataColumn,
             properties[idx]);
-#endif
       }
       connectorSplits.emplace_back(split);
     }
