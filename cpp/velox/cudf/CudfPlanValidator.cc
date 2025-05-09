@@ -21,7 +21,6 @@
 #include "velox/exec/Task.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
 #include "velox/memory/VeloxMemoryManager.h"
-
 #include "velox/core/PlanNode.h"
 
 using namespace facebook;
@@ -51,7 +50,7 @@ bool CudfPlanValidator::validate(VeloxMemoryManager* memoryManager, const ::subs
       0,
       std::move(queryCtx),
       velox::exec::Task::ExecutionMode::kSerial);
-  auto state = velox::cudf_velox::CompileState(*(task->getDriverFactory()), *(task->getDriver()));
+  auto state = velox::cudf_velox::CompileState(task->getDriverFactory(), *(task->getDriver()));
   auto res = state.compile();
   if (res.first) {
     for (const auto* op : res.second) {
