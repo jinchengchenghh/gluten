@@ -17,10 +17,10 @@
  */
 
 #include "CudfPlanValidator.h"
-#include "velox/compute/VeloxPlanConverter.h"
+#include "compute/VeloxPlanConverter.h"
+#include "compute/VeloxBackend.h"
 #include "velox/exec/Task.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
-#include "velox/memory/VeloxMemoryManager.h"
 #include "velox/core/PlanNode.h"
 
 using namespace facebook;
@@ -29,11 +29,12 @@ namespace gluten {
 bool CudfPlanValidator::validate(VeloxMemoryManager* memoryManager, const ::substrait::Plan& substraitPlan) {
   auto veloxMemoryPool = gluten::defaultLeafVeloxMemoryPool();
   std::vector<::substrait::ReadRel_LocalFiles> localFiles;
-  VeloxPlanConverter veloxPlanConverter(veloxMemoryPool.get(), sessionConf, std::nullopt, true);
+  std::unordered_map<std::string, std::string> configValues;
+  VeloxPlanConverter veloxPlanConverter(veloxMemoryPool.get(), configValues, std::nullopt, true);
   auto planNode = veloxPlanConverter.toVeloxPlan(substraitPlan, localFiles);
   std::unordered_set<velox::core::PlanNodeId> emptySet;
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
-  std::unordered_map<std::string, std::string> configValues;
+  
   std::unordered_map<std::string, std::shared_ptr<velox::config::ConfigBase>> connectorConfigs;
   static std::atomic<uint32_t> vtId{0};
   std::shared_ptr<velox::core::QueryCtx> queryCtx = velox::core::QueryCtx::create(
@@ -50,7 +51,7 @@ bool CudfPlanValidator::validate(VeloxMemoryManager* memoryManager, const ::subs
       0,
       std::move(queryCtx),
       velox::exec::Task::ExecutionMode::kSerial);
-  auto state = velox::cudf_velox::CompileState(task->getDriverFactory(), *(task->getDriver()));
+  auto state = velox::cudf_velox::CompileState(task->getDriverFactory(0), *(task->getDriver(0)));
   auto res = state.compile();
   if (res.first) {
     for (const auto* op : res.second) {

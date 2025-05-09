@@ -37,7 +37,7 @@
 #include "velox/common/file/FileSystems.h"
 
 #ifdef GLUTEN_ENABLE_GPU
-#include "velox/cudf/CudfPlanValidator.h"
+#include "cudf/CudfPlanValidator.h"
 #endif
 
 #include <iostream>
@@ -476,10 +476,12 @@ JNIEXPORT jboolean JNICALL Java_org_apache_gluten_extension_VeloxCudfPlanValidat
     jint limit) {
   JNI_METHOD_START
   auto ctx = getRuntime(env, wrapper);
-  auto& conf = ctx->getConfMap();
+  // auto& conf = ctx->getConfMap();
+  auto safePlanArray = getByteArrayElementsSafe(env, planArr);
+  auto planSize = env->GetArrayLength(planArr);
   ctx->parsePlan(safePlanArray.elems(), planSize, std::nullopt);
   // get the task and driver, validate the plan, if return all operator except table scan is offloaded, validate true.
-  return CudfPlanValidator::validate(ctx->memoryManager(), ctx->getPlan());
+  return CudfPlanValidator::validate(dynamic_cast<VeloxMemoryManager*>(ctx->memoryManager()), ctx->getPlan());
   JNI_METHOD_END(false)
 }
 #endif
