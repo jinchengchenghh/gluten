@@ -52,7 +52,7 @@ import scala.collection.mutable.ArrayBuffer
 
 case class TransformContext(outputAttributes: Seq[Attribute], root: RelNode)
 
-case class WholeStageTransformContext(root: PlanNode, substraitContext: SubstraitContext = null)
+case class WholeStageTransformContext(root: PlanNode, substraitContext: SubstraitContext = null, enableCudf: Boolean = false)
 
 /**
  * Base interface for a Gluten query plan that is also open to validation calls.
@@ -134,7 +134,7 @@ trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
 /** Base interface for a query plan that can be interpreted to Substrait representation. */
 trait TransformSupport extends ValidatablePlan {
 
-  protected var cudfPrefix = ""
+  protected var isCudf = false
 
   override def batchType(): Convention.BatchType = {
     BackendsApiManager.getSettings.primaryBatchType
@@ -149,7 +149,7 @@ trait TransformSupport extends ValidatablePlan {
       s"${this.getClass.getSimpleName} doesn't support doExecute")
   }
 
-  override def nodeName: String = cudfPrefix + super.nodeName
+  override def nodeName: String = if (isCudf) "Cudf" + super.nodeName else super.nodeName
 
   /**
    * Returns all the RDDs of ColumnarBatch which generates the input rows.
@@ -204,8 +204,10 @@ trait TransformSupport extends ValidatablePlan {
   // When true, it will not generate relNode, nor will it generate native metrics.
   def isNoop: Boolean = false
 
+  // If set the isCudf, the config will send to native backend,
+  // and enable the cudf plan or not in runtime stage
   def setIsCudf: Unit = {
-    cudfPrefix = "Cudf"
+    isCudf = true
   }
 }
 
@@ -334,7 +336,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames)
     }
 
-    WholeStageTransformContext(planNode, substraitContext)
+    WholeStageTransformContext(planNode, substraitContext, isCudf)
   }
 
   def doWholeStageTransform(): WholeStageTransformContext = {
@@ -422,7 +424,8 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
         wsCtx.substraitContext.registeredRelMap,
         wsCtx.substraitContext.registeredJoinParams,
         wsCtx.substraitContext.registeredAggregationParams
-      )
+      ),
+      wsCtx.enableCudf
     )
 
     SoftAffinity.updateFilePartitionLocations(Seq(allInputPartitions), rdd.id)

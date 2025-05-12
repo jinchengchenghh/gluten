@@ -21,6 +21,9 @@
 #include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
+#ifdef GLUTEN_ENABLE_GPU
+#include "velox/experimental/cudf/exec/ToCudf.h"
+#endif
 
 using namespace facebook;
 
@@ -61,7 +64,8 @@ WholeStageResultIterator::WholeStageResultIterator(
     const std::vector<facebook::velox::core::PlanNodeId>& streamIds,
     const std::string spillDir,
     const std::unordered_map<std::string, std::string>& confMap,
-    const SparkTaskInfo& taskInfo)
+    const SparkTaskInfo& taskInfo,
+    bool enableCudf)
     : memoryManager_(memoryManager),
       veloxCfg_(
           std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap))),
@@ -72,10 +76,14 @@ WholeStageResultIterator::WholeStageResultIterator(
       streamIds_(streamIds) {
   spillStrategy_ = veloxCfg_->get<std::string>(kSpillStrategy, kSpillStrategyDefaultValue);
   auto spillThreadNum = veloxCfg_->get<uint32_t>(kSpillThreadNum, kSpillThreadNumDefaultValue);
+#ifdef GLUTEN_ENABLE_GPU
+  if (!enableCudf) {
+    veloxCfg_->set(cudf_velox::kCudfEnabled, "false");
+  }
+#endif
   if (spillThreadNum > 0) {
     spillExecutor_ = std::make_shared<folly::CPUThreadPoolExecutor>(spillThreadNum);
   }
-
   getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
 
   // Create task instance.

@@ -17,30 +17,23 @@
 package org.apache.gluten.extension
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.cudf.VeloxCudfPlanValidatorJniWrapper
-import org.apache.gluten.execution.{TransformSupport, VeloxResizeBatchesExec, WholeStageTransformer}
+import org.apache.gluten.execution.{TransformSupport, WholeStageTransformer}
 import org.apache.gluten.runtime.Runtimes
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 
-/**
- * Try to append [[VeloxResizeBatchesExec]] for shuffle input and ouput to make the batch sizes in
- * good shape.
- */
-case class CudfNodeNameModifyRule() extends Rule[SparkPlan] {
+// Add the node name prefix 'Cudf' when can offload to cudf
+case class CudfNodeValidationRule() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (!GlutenConfig.get.enableColumnarCudf) {
-      return plan
-    }
     val runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName, "VeloxCudfValidator")
     val jniWrapper = VeloxCudfPlanValidatorJniWrapper.create(runtime)
     plan.transformUp {
       case transformer: WholeStageTransformer =>
         if (jniWrapper.validate(transformer.substraitPlan.toProtobuf.toByteArray)) {
           transformer.foreach(p => p.asInstanceOf[TransformSupport].setIsCudf)
-          transformer
-        } else transformer
+        }
+        transformer
     }
   }
 }

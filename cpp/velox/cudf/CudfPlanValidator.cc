@@ -17,11 +17,11 @@
  */
 
 #include "CudfPlanValidator.h"
-#include "compute/VeloxPlanConverter.h"
 #include "compute/VeloxBackend.h"
+#include "compute/VeloxPlanConverter.h"
+#include "velox/core/PlanNode.h"
 #include "velox/exec/Task.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
-#include "velox/core/PlanNode.h"
 
 using namespace facebook;
 
@@ -34,7 +34,7 @@ bool CudfPlanValidator::validate(VeloxMemoryManager* memoryManager, const ::subs
   auto planNode = veloxPlanConverter.toVeloxPlan(substraitPlan, localFiles);
   std::unordered_set<velox::core::PlanNodeId> emptySet;
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
-  
+
   std::unordered_map<std::string, std::shared_ptr<velox::config::ConfigBase>> connectorConfigs;
   static std::atomic<uint32_t> vtId{0};
   std::shared_ptr<velox::core::QueryCtx> queryCtx = velox::core::QueryCtx::create(
@@ -51,18 +51,18 @@ bool CudfPlanValidator::validate(VeloxMemoryManager* memoryManager, const ::subs
       0,
       std::move(queryCtx),
       velox::exec::Task::ExecutionMode::kSerial);
-  auto state = velox::cudf_velox::CompileState(task->getDriverFactory(0), *(task->getDriver(0)));
-  auto res = state.compile();
-  if (res.first) {
-    for (const auto* op : res.second) {
-      if (dynamic_cast<const exec::TableScan*>(op) != nullptr) {
-        continue;
-      }
-      LOG(INFO) << "Operator " << op->operatorType() << " is not supported in cudf";
-      return false;
+  const auto& operators = task->getDriver(0).operators();
+  for (const auto* op : operators) {
+    if (dynamic_cast<const exec::TableScan*>(op) != nullptr) {
+      continue;
     }
+    if (cudf_velox::isCudfOperator(op)) {
+        continue;
+    }
+    LOG(INFO) << "Operator " << op->operatorType() << " is not supported in cudf";
+    return false;
   }
-  return res.first;
+  return true;
 }
 
 } // namespace gluten

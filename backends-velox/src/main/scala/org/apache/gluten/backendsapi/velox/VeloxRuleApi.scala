@@ -197,7 +197,9 @@ object VeloxRuleApi {
       .getExtendedColumnarPostRules()
       .foreach(each => injector.injectPostTransform(c => each(c.session)))
     injector.injectPostTransform(c => ColumnarCollapseTransformStages(c.glutenConf))
-    injector.injectPostTransform(_ => CudfNodeNameModifyRule())
+    if (!GlutenConfig.get.enableColumnarCudf) {
+      injector.injectPostTransform(_ => CudfNodeValidationRule())
+    }
     injector.injectPostTransform(c => GlutenNoopWriterRule(c.session))
     injector.injectPostTransform(c => RemoveGlutenTableCacheColumnarToRow(c.session))
     injector.injectPostTransform(

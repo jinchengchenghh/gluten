@@ -24,7 +24,7 @@ namespace gluten {
 
 class DummyMemoryManager final : public MemoryManager {
  public:
-  DummyMemoryManager(const std::string& kind) : MemoryManager(kind){};
+  DummyMemoryManager(const std::string& kind) : MemoryManager(kind) {};
 
   arrow::MemoryPool* getArrowMemoryPool() override {
     throw GlutenException("Not yet implemented");
@@ -57,7 +57,8 @@ class DummyRuntime final : public Runtime {
   std::shared_ptr<ResultIterator> createResultIterator(
       const std::string& spillDir,
       const std::vector<std::shared_ptr<ResultIterator>>& inputs,
-      const std::unordered_map<std::string, std::string>& sessionConf) override {
+      const std::unordered_map<std::string, std::string>& sessionConf,
+      bool enableCudf) override {
     auto resIter = std::make_unique<DummyResultIterator>();
     auto iter = std::make_shared<ResultIterator>(std::move(resIter));
     return iter;

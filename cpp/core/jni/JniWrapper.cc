@@ -406,7 +406,8 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
     jint partitionId,
     jlong taskId,
     jboolean saveInput,
-    jstring spillDir) {
+    jstring spillDir,
+    jboolean enableCudf) {
   JNI_METHOD_START
 
   auto ctx = getRuntime(env, wrapper);
@@ -472,7 +473,7 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
     inputIters.push_back(std::move(resultIter));
   }
 
-  return ctx->saveObject(ctx->createResultIterator(spillDirStr, inputIters, conf));
+  return ctx->saveObject(ctx->createResultIterator(spillDirStr, inputIters, conf, enableCudf));
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
