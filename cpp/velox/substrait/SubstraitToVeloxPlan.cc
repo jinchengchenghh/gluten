@@ -1254,7 +1254,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   auto streamIdx = getStreamIndex(readRel);
   if (streamIdx >= 0) {
     // Only used in benchmark enable query trace, replace ValueStreamNode to ValuesNode to support serialization.
-    if (LIKELY(confMap_[kQueryTraceEnabled] != "true") && LIKELY(confMap_[kUseValuesNode] != "true") {
+    if (LIKELY(confMap_[kQueryTraceEnabled] != "true") && LIKELY(confMap_[kUseValuesNode] != "true")) {
       return constructValueStreamNode(readRel, streamIdx);
     } else {
       return constructValuesNode(readRel, streamIdx);
