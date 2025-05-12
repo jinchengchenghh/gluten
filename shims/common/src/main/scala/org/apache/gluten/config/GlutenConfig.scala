@@ -1426,7 +1426,7 @@ object GlutenConfig {
       .createWithDefault("")
 
   val USE_VALUES_NODE =
-    buildStaticConf("spark.gluten.sql.columnar.backend.velox.useValuesNode")
+    buildConf("spark.gluten.sql.columnar.backend.velox.useValuesNode")
       .doc("Use ValuesNode rather than RowVectorStreamNode to serialize the node")
       .internal()
       .booleanConf
