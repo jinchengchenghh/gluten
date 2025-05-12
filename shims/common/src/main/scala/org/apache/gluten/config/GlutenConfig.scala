@@ -1425,6 +1425,13 @@ object GlutenConfig {
       .stringConf
       .createWithDefault("")
 
+  val USE_VALUES_NODE =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.useValuesNode")
+      .doc("Use ValuesNode rather than RowVectorStreamNode to serialize the node")
+      .internal()
+      .booleanConf
+      .createWithDefault(false)
+
   val NATIVE_WRITER_ENABLED =
     buildConf("spark.gluten.sql.native.writer.enabled")
       .internal()
