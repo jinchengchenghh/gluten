@@ -154,6 +154,8 @@ const std::string kDebugCudf = "spark.gluten.sql.debug.cudf";
 const bool kDebugCudfDefault = "false";
 #endif
 
+// Use ValuesNode rather than RowVectorStream to support serialize the node.
+const std::string kUseValuesNode = "spark.gluten.sql.columnar.backend.velox.useValuesNode";
 // Query trace
 /// Enable query tracing flag.
 const std::string kQueryTraceEnabled = "spark.gluten.sql.columnar.backend.velox.queryTraceEnabled";

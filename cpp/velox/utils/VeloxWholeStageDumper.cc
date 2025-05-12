@@ -16,6 +16,7 @@
  */
 
 #include "utils/VeloxWholeStageDumper.h"
+#include <folly/json/json.h>
 #include "compute/VeloxBackend.h"
 #include "config/GlutenConfig.h"
 #include "operators/reader/ParquetReaderIterator.h"
@@ -97,6 +98,13 @@ void VeloxWholeStageDumper::dumpConf(const std::unordered_map<std::string, std::
 
 void VeloxWholeStageDumper::dumpPlan(const std::string& planJson) {
   const auto fileName = fmt::format("plan_{}_{}_{}.json", taskInfo_.stageId, taskInfo_.partitionId, taskInfo_.vId);
+  dumpToStorage(saveDir_, fileName, planJson);
+}
+
+void VeloxWholeStageDumper::dumpVeloxPlan(std::shared_ptr<const facebook::velox::core::PlanNode> node) {
+  const auto fileName =
+      fmt::format("velox_plan_{}_{}_{}.json", taskInfo_.stageId, taskInfo_.partitionId, taskInfo_.vId);
+  const auto planJson = folly::toJson(node->serialize());
   dumpToStorage(saveDir_, fileName, planJson);
 }
 

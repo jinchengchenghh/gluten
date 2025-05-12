@@ -40,6 +40,9 @@ class VeloxWholeStageDumper final : public WholeStageDumper {
       int32_t iteratorIndex,
       const std::shared_ptr<ColumnarBatchIterator>& inputIterator) override;
 
+  // Dump the velox plan to json.
+  void dumpVeloxPlan(std::shared_ptr<const facebook::velox::core::PlanNode> node);
+
  private:
   SparkTaskInfo taskInfo_;
   std::string saveDir_;

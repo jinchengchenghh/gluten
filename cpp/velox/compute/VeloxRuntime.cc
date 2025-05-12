@@ -162,6 +162,9 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
   LOG_IF(INFO, debugModeEnabled_ && taskInfo_.has_value())
       << "############### Velox plan for task " << taskInfo_.value() << " ###############" << std::endl
       << veloxPlan_->toString(true, true);
+  if (dumper) {
+    dumper_->dumpVeloxPlan(veloxPlan_);
+  }
 
   // Scan node can be required.
   std::vector<std::shared_ptr<SplitInfo>> scanInfos;
