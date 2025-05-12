@@ -1233,6 +1233,10 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValuesNode(
   while (iterator->hasNext()) {
     auto cb = VeloxColumnarBatch::from(defaultLeafVeloxMemoryPool().get(), iterator->next());
     values.emplace_back(cb->getRowVector());
+    LOG(INFO) << "vector pool information " << cb->getRowVector()->pool()->toString();
+    for (auto child : cb->getRowVector()->children()) {
+      LOG(INFO) << "child vector pool information " << child->pool()->toString();
+    }
   }
   auto node = std::make_shared<facebook::velox::core::ValuesNode>(nextPlanNodeId(), std::move(values));
 
