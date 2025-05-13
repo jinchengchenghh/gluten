@@ -33,6 +33,7 @@ case class CudfNodeValidationRule() extends Rule[SparkPlan] {
         ) {
           transformer.foreach(p => p.asInstanceOf[TransformSupport].setIsCudf)
         }
+        print("cudf transformer plan " + transformer.toString())
         transformer
     }
   }

@@ -62,6 +62,7 @@ bool CudfPlanValidator::validate(const ::substrait::Plan& substraitPlan) {
     LOG(INFO) << "Operator " << op->operatorType() << " is not supported in cudf";
     return false;
   }
+  LOG(INFO) << "Cudf Operator validation success";
   return true;
 }
 
