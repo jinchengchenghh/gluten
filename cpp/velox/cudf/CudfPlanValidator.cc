@@ -19,10 +19,10 @@
 #include "CudfPlanValidator.h"
 #include "compute/VeloxBackend.h"
 #include "compute/VeloxPlanConverter.h"
+#include "operators/plannodes/RowVectorStream.h"
 #include "velox/core/PlanNode.h"
 #include "velox/exec/Task.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
-#include "velox/operators/plannodes/RowVectorStream.h"
 
 using namespace facebook;
 
