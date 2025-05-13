@@ -78,7 +78,7 @@ WholeStageResultIterator::WholeStageResultIterator(
     veloxConfMap[cudf_velox::kCudfEnabled] = "false";
   }
 #endif
-  veloxCfg_(std::make_shared<facebook::velox::config::ConfigBase>(std::move(veloxConfMap)));
+  veloxCfg_ = std::make_shared<facebook::velox::config::ConfigBase>(std::move(veloxConfMap));
   spillStrategy_ = veloxCfg_->get<std::string>(kSpillStrategy, kSpillStrategyDefaultValue);
   auto spillThreadNum = veloxCfg_->get<uint32_t>(kSpillThreadNum, kSpillThreadNumDefaultValue);
 
