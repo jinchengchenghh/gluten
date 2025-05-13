@@ -22,6 +22,7 @@
 #include "velox/core/PlanNode.h"
 #include "velox/exec/Task.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
+#include "velox/operators/plannodes/RowVectorStream.h"
 
 using namespace facebook;
 
