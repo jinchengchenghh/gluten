@@ -18,10 +18,6 @@ package org.apache.gluten.cudf;
 
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.RuntimeAware;
-import org.apache.gluten.utils.ConfigUtil;
-import org.apache.spark.sql.execution.datasources.BlockStripes;
-
-import java.util.Map;
 
 /** The jni file is at `cpp/core/jni/JniWrapper.cc` */
 public class VeloxCudfPlanValidatorJniWrapper implements RuntimeAware {

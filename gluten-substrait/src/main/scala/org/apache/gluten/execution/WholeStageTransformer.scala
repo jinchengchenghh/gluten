@@ -52,7 +52,10 @@ import scala.collection.mutable.ArrayBuffer
 
 case class TransformContext(outputAttributes: Seq[Attribute], root: RelNode)
 
-case class WholeStageTransformContext(root: PlanNode, substraitContext: SubstraitContext = null, enableCudf: Boolean = false)
+case class WholeStageTransformContext(
+    root: PlanNode,
+    substraitContext: SubstraitContext = null,
+    enableCudf: Boolean = false)
 
 /**
  * Base interface for a Gluten query plan that is also open to validation calls.
