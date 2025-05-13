@@ -468,7 +468,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJ
 }
 
 #ifdef GLUTEN_ENABLE_GPU
-JNIEXPORT jboolean JNICALL Java_org_apache_gluten_extension_VeloxCudfPlanValidator_validate( // NOLINT
+JNIEXPORT jboolean JNICALL Java_org_apache_gluten_cudf_VeloxCudfPlanValidatorJniWrapper_validate( // NOLINT
     JNIEnv* env,
     jclass,
     jbyteArray planArr) {
