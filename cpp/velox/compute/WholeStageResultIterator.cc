@@ -75,7 +75,7 @@ WholeStageResultIterator::WholeStageResultIterator(
   auto veloxConfMap = std::unordered_map<std::string, std::string>(confMap);
 #ifdef GLUTEN_ENABLE_GPU
   if (!enableCudf) {
-    veloxConfMap[cudf_velox::kCudfEnabled] = "false");
+    veloxConfMap[cudf_velox::kCudfEnabled] = "false";
   }
 #endif
   veloxCfg_(std::make_shared<facebook::velox::config::ConfigBase>(std::move(veloxConfMap)));
