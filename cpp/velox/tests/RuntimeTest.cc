@@ -155,7 +155,7 @@ TEST(TestRuntime, CreateVeloxRuntime) {
 TEST(TestRuntime, GetResultIterator) {
   DummyMemoryManager mm(kDummyBackendKind);
   auto runtime = std::make_shared<DummyRuntime>(kDummyBackendKind, &mm, std::unordered_map<std::string, std::string>());
-  auto iter = runtime->createResultIterator("/tmp/test-spill", {}, {});
+  auto iter = runtime->createResultIterator("/tmp/test-spill", {}, {}, false);
   ASSERT_TRUE(iter->hasNext());
   auto next = iter->next();
   ASSERT_NE(next, nullptr);
