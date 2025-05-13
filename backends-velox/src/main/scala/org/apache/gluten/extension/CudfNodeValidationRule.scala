@@ -29,7 +29,10 @@ case class CudfNodeValidationRule() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
     plan.transformUp {
       case transformer: WholeStageTransformer =>
-        if (VeloxCudfPlanValidatorJniWrapper.validate(transformer.substraitPlan.toProtobuf.toByteArray)) {
+        if (
+          VeloxCudfPlanValidatorJniWrapper.validate(
+            transformer.substraitPlan.toProtobuf.toByteArray)
+        ) {
           transformer.foreach(p => p.asInstanceOf[TransformSupport].setIsCudf)
         }
         transformer
