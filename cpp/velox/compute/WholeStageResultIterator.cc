@@ -67,20 +67,21 @@ WholeStageResultIterator::WholeStageResultIterator(
     const SparkTaskInfo& taskInfo,
     bool enableCudf)
     : memoryManager_(memoryManager),
-      veloxCfg_(
-          std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap))),
       taskInfo_(taskInfo),
       veloxPlan_(planNode),
       scanNodeIds_(scanNodeIds),
       scanInfos_(scanInfos),
       streamIds_(streamIds) {
-  spillStrategy_ = veloxCfg_->get<std::string>(kSpillStrategy, kSpillStrategyDefaultValue);
-  auto spillThreadNum = veloxCfg_->get<uint32_t>(kSpillThreadNum, kSpillThreadNumDefaultValue);
+  auto veloxConfMap = std::unordered_map<std::string, std::string>(confMap);
 #ifdef GLUTEN_ENABLE_GPU
   if (!enableCudf) {
-    veloxCfg_->set(cudf_velox::kCudfEnabled, "false");
+    veloxConfMap[cudf_velox::kCudfEnabled] = "false");
   }
 #endif
+  veloxCfg_(std::make_shared<facebook::velox::config::ConfigBase>(std::move(veloxConfMap)));
+  spillStrategy_ = veloxCfg_->get<std::string>(kSpillStrategy, kSpillStrategyDefaultValue);
+  auto spillThreadNum = veloxCfg_->get<uint32_t>(kSpillThreadNum, kSpillThreadNumDefaultValue);
+
   if (spillThreadNum > 0) {
     spillExecutor_ = std::make_shared<folly::CPUThreadPoolExecutor>(spillThreadNum);
   }
@@ -594,9 +595,6 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     setIfExists(kQueryTraceMaxBytes, velox::core::QueryConfig::kQueryTraceMaxBytes);
     setIfExists(kQueryTraceTaskRegExp, velox::core::QueryConfig::kQueryTraceTaskRegExp);
     setIfExists(kOpTraceDirectoryCreateConfig, velox::core::QueryConfig::kOpTraceDirectoryCreateConfig);
-#ifdef GLUTEN_ENABLE_GPU
-    configs[kCudfEngine] = "spark";
-#endif
   } catch (const std::invalid_argument& err) {
     std::string errDetails = err.what();
     throw std::runtime_error("Invalid conf arg: " + errDetails);
