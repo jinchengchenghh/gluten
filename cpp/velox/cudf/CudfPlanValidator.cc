@@ -26,7 +26,7 @@
 using namespace facebook;
 
 namespace gluten {
-bool CudfPlanValidator::validate(VeloxMemoryManager* memoryManager, const ::substrait::Plan& substraitPlan) {
+bool CudfPlanValidator::validate(const ::substrait::Plan& substraitPlan) {
   auto veloxMemoryPool = gluten::defaultLeafVeloxMemoryPool();
   std::vector<::substrait::ReadRel_LocalFiles> localFiles;
   std::unordered_map<std::string, std::string> configValues;
@@ -42,7 +42,7 @@ bool CudfPlanValidator::validate(VeloxMemoryManager* memoryManager, const ::subs
       facebook::velox::core::QueryConfig{configValues},
       connectorConfigs,
       gluten::VeloxBackend::get()->getAsyncDataCache(),
-      memoryManager->getAggregateMemoryPool(),
+      getDefaultMemoryManager()->getAggregateMemoryPool(),
       nullptr,
       fmt::format("Gluten_Cudf_Validation_VTID_{}", std::to_string(vtId++)));
   std::shared_ptr<facebook::velox::exec::Task> task = velox::exec::Task::create(
@@ -57,7 +57,7 @@ bool CudfPlanValidator::validate(VeloxMemoryManager* memoryManager, const ::subs
       continue;
     }
     if (cudf_velox::isCudfOperator(op)) {
-        continue;
+      continue;
     }
     LOG(INFO) << "Operator " << op->operatorType() << " is not supported in cudf";
     return false;

@@ -16,25 +16,7 @@
  */
 package org.apache.gluten.cudf;
 
-import org.apache.gluten.runtime.Runtime;
-import org.apache.gluten.runtime.RuntimeAware;
-
-/** The jni file is at `cpp/core/jni/JniWrapper.cc` */
-public class VeloxCudfPlanValidatorJniWrapper implements RuntimeAware {
-  private final Runtime runtime;
-
-  private VeloxCudfPlanValidatorJniWrapper(Runtime runtime) {
-    this.runtime = runtime;
-  }
-
-  public static VeloxCudfPlanValidatorJniWrapper create(Runtime runtime) {
-    return new VeloxCudfPlanValidatorJniWrapper(runtime);
-  }
-
-  @Override
-  public long rtHandle() {
-    return runtime.getHandle();
-  }
-
-  public native boolean validate(byte[] wsPlan);
+/** The jni file is at `cpp/core/jni/VeloxJniWrapper.cc` */
+public class VeloxCudfPlanValidatorJniWrapper {
+  public static native boolean validate(byte[] wsPlan);
 }

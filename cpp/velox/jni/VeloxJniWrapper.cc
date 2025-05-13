@@ -470,18 +470,15 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJ
 #ifdef GLUTEN_ENABLE_GPU
 JNIEXPORT jboolean JNICALL Java_org_apache_gluten_extension_VeloxCudfPlanValidator_validate( // NOLINT
     JNIEnv* env,
-    jobject wrapper,
-    jbyteArray planArr,
-    jint offset,
-    jint limit) {
+    jclass,
+    jbyteArray planArr) {
   JNI_METHOD_START
-  auto ctx = getRuntime(env, wrapper);
-  // auto& conf = ctx->getConfMap();
   auto safePlanArray = getByteArrayElementsSafe(env, planArr);
   auto planSize = env->GetArrayLength(planArr);
-  ctx->parsePlan(safePlanArray.elems(), planSize, std::nullopt);
+  ::substrait::Plan substraitPlan;
+  parseProtobuf(safePlanArray.elems(), planSize, &substraitPlan);
   // get the task and driver, validate the plan, if return all operator except table scan is offloaded, validate true.
-  return CudfPlanValidator::validate(dynamic_cast<VeloxMemoryManager*>(ctx->memoryManager()), ctx->getPlan());
+  return CudfPlanValidator::validate(substraitPlan);
   JNI_METHOD_END(false)
 }
 #endif

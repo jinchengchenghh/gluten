@@ -24,6 +24,6 @@ namespace gluten {
 class CudfPlanValidator {
  public:
   // Validate if the plan contains cudf unsupported operator except TableScan.
-  static bool validate(VeloxMemoryManager* memoryManager, const ::substrait::Plan& substraitPlan);
+  static bool validate(const ::substrait::Plan& substraitPlan);
 };
 } // namespace gluten

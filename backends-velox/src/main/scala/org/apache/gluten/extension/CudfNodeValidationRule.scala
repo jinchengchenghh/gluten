@@ -27,11 +27,9 @@ import org.apache.spark.sql.execution.SparkPlan
 // Add the node name prefix 'Cudf' when can offload to cudf
 case class CudfNodeValidationRule() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
-    val runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName, "VeloxCudfValidator")
-    val jniWrapper = VeloxCudfPlanValidatorJniWrapper.create(runtime)
     plan.transformUp {
       case transformer: WholeStageTransformer =>
-        if (jniWrapper.validate(transformer.substraitPlan.toProtobuf.toByteArray)) {
+        if (VeloxCudfPlanValidatorJniWrapper.validate(transformer.substraitPlan.toProtobuf.toByteArray)) {
           transformer.foreach(p => p.asInstanceOf[TransformSupport].setIsCudf)
         }
         transformer
