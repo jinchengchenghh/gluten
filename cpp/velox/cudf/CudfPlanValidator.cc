@@ -59,6 +59,9 @@ bool CudfPlanValidator::validate(const ::substrait::Plan& substraitPlan) {
     if (cudf_velox::isCudfOperator(op)) {
       continue;
     }
+    if (dynamic_cast<const ValueStream*>(op) != nullptr) {
+      continue;
+    }
     LOG(INFO) << "Operator " << op->operatorType() << " is not supported in cudf";
     return false;
   }
