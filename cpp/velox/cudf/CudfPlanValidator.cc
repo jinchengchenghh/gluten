@@ -53,7 +53,6 @@ bool CudfPlanValidator::validate(const ::substrait::Plan& substraitPlan) {
       std::move(queryCtx),
       velox::exec::Task::ExecutionMode::kSerial);
   const auto& operators = task->getDriver(0)->operators();
-  task->requestCancel().wait();
   for (const auto* op : operators) {
     if (dynamic_cast<const exec::TableScan*>(op) != nullptr) {
       continue;
@@ -65,8 +64,10 @@ bool CudfPlanValidator::validate(const ::substrait::Plan& substraitPlan) {
       continue;
     }
     LOG(INFO) << "Operator " << op->operatorType() << " is not supported in cudf";
+    task->requestCancel().wait();
     return false;
   }
+  task->requestCancel().wait();
   LOG(INFO) << "Cudf Operator validation success";
   return true;
 }
