@@ -579,7 +579,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         std::to_string(veloxCfg_->get<bool>(kSparkLegacyStatisticalAggregate, false));
 
 #ifdef GLUTEN_ENABLE_GPU
-    if (!enableCudf) {
+    if (!enableCudf_) {
       configs[cudf_velox::kCudfEnabled] = "false";
     }
 #endif
