@@ -102,6 +102,8 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
       const std::unordered_map<std::string, facebook::velox::RuntimeMetric>& runtimeStats,
       const std::string& metricId);
 
+  const bool enableCudf_;
+
   /// Memory.
   VeloxMemoryManager* memoryManager_;
 

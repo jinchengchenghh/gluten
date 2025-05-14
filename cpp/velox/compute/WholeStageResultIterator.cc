@@ -66,10 +66,10 @@ WholeStageResultIterator::WholeStageResultIterator(
     const std::unordered_map<std::string, std::string>& confMap,
     const SparkTaskInfo& taskInfo,
     bool enableCudf)
-    : memoryManager_(memoryManager),
-      veloxCfg_(std::make_shared<facebook::velox::config::ConfigBase>(
-          std::unordered_map<std::string, std::string>(confMap),
-          true)),
+    : enableCudf_(enableCudf),
+      memoryManager_(memoryManager),
+      veloxCfg_(
+          std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap))),
       taskInfo_(taskInfo),
       veloxPlan_(planNode),
       scanNodeIds_(scanNodeIds),
@@ -77,11 +77,6 @@ WholeStageResultIterator::WholeStageResultIterator(
       streamIds_(streamIds) {
   spillStrategy_ = veloxCfg_->get<std::string>(kSpillStrategy, kSpillStrategyDefaultValue);
   auto spillThreadNum = veloxCfg_->get<uint32_t>(kSpillThreadNum, kSpillThreadNumDefaultValue);
-#ifdef GLUTEN_ENABLE_GPU
-  if (!enableCudf) {
-    veloxCfg_->set(cudf_velox::kCudfEnabled, "false");
-  }
-#endif
   if (spillThreadNum > 0) {
     spillExecutor_ = std::make_shared<folly::CPUThreadPoolExecutor>(spillThreadNum);
   }
@@ -582,6 +577,12 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
 
     configs[velox::core::QueryConfig::kSparkLegacyStatisticalAggregate] =
         std::to_string(veloxCfg_->get<bool>(kSparkLegacyStatisticalAggregate, false));
+
+#ifdef GLUTEN_ENABLE_GPU
+    if (!enableCudf) {
+      configs[cudf_velox::kCudfEnabled] = "false";
+    }
+#endif
 
     const auto setIfExists = [&](const std::string& glutenKey, const std::string& veloxKey) {
       const auto valueOptional = veloxCfg_->get<std::string>(glutenKey);
