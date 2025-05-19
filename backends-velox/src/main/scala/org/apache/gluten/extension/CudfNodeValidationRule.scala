@@ -19,6 +19,7 @@ package org.apache.gluten.extension
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.cudf.VeloxCudfPlanValidatorJniWrapper
 import org.apache.gluten.execution.{TransformSupport, WholeStageTransformer}
+
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 
