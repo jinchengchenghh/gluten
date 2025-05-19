@@ -16,15 +16,18 @@
  */
 package org.apache.gluten.extension
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.cudf.VeloxCudfPlanValidatorJniWrapper
 import org.apache.gluten.execution.{TransformSupport, WholeStageTransformer}
-
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 
 // Add the node name prefix 'Cudf' when can offload to cudf
-case class CudfNodeValidationRule() extends Rule[SparkPlan] {
+case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
+    if (!glutenConf.enableColumnarCudf) {
+      return plan
+    }
     plan.transformUp {
       case transformer: WholeStageTransformer =>
         if (
