@@ -35,7 +35,10 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
           VeloxCudfPlanValidatorJniWrapper.validate(
             transformer.substraitPlan.toProtobuf.toByteArray)
         ) {
-          transformer.foreach(p => p.asInstanceOf[TransformSupport].setIsCudf)
+          transformer.foreach {
+            case t: TransformSupport => t.setIsCudf
+            case _ =>
+          }
         }
         print("cudf transformer plan " + transformer.toString())
         transformer
