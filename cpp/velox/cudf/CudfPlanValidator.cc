@@ -46,13 +46,20 @@ bool CudfPlanValidator::validate(const ::substrait::Plan& substraitPlan) {
       getDefaultMemoryManager()->getAggregateMemoryPool(),
       nullptr,
       fmt::format("Gluten_Cudf_Validation_VTID_{}", std::to_string(vtId++)));
-  std::shared_ptr<facebook::velox::exec::Task> task = velox::exec::Task::create(
-      fmt::format("Gluten_Cudf_Validation_VTID_{}", std::to_string(vtId++)),
-      std::move(planFragment),
-      0,
-      std::move(queryCtx),
-      velox::exec::Task::ExecutionMode::kSerial);
-  const auto& operators = task->getDriver(0)->operators();
+  std::shared_ptr<facebook::velox::exec::Task> task;
+  try {
+    task = velox::exec::Task::create(
+        fmt::format("Gluten_Cudf_Validation_VTID_{}", std::to_string(vtId++)),
+        std::move(planFragment),
+        0,
+        std::move(queryCtx),
+        velox::exec::Task::ExecutionMode::kSerial);
+  } catch (const std::exception& e) {
+    LOG(INFO) << "Validation failed by " << e.what();
+    return false;
+  }
+  std::vector<velox::exec::Operator*> operators;
+  task->testingVisitDrivers([&](velox::exec::Driver* driver) { operators = driver->operators(); });
   for (const auto* op : operators) {
     if (dynamic_cast<const exec::TableScan*>(op) != nullptr) {
       continue;
