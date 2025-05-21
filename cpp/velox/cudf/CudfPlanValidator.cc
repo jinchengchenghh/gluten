@@ -28,46 +28,46 @@ using namespace facebook;
 
 namespace gluten {
 bool CudfPlanValidator::validate(const ::substrait::Plan& substraitPlan) {
-//   auto veloxMemoryPool = gluten::defaultLeafVeloxMemoryPool();
-//   std::vector<::substrait::ReadRel_LocalFiles> localFiles;
-//   std::unordered_map<std::string, std::string> configValues;
-//   VeloxPlanConverter veloxPlanConverter(veloxMemoryPool.get(), configValues, std::nullopt, true);
-//   auto planNode = veloxPlanConverter.toVeloxPlan(substraitPlan, localFiles);
-//   std::unordered_set<velox::core::PlanNodeId> emptySet;
-//   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
+  auto veloxMemoryPool = gluten::defaultLeafVeloxMemoryPool();
+  std::vector<::substrait::ReadRel_LocalFiles> localFiles;
+  std::unordered_map<std::string, std::string> configValues;
+  VeloxPlanConverter veloxPlanConverter(veloxMemoryPool.get(), configValues, std::nullopt, true);
+  auto planNode = veloxPlanConverter.toVeloxPlan(substraitPlan, localFiles);
+  std::unordered_set<velox::core::PlanNodeId> emptySet;
+  velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
 
-//   std::unordered_map<std::string, std::shared_ptr<velox::config::ConfigBase>> connectorConfigs;
-//   static std::atomic<uint32_t> vtId{0};
-//   std::shared_ptr<velox::core::QueryCtx> queryCtx = velox::core::QueryCtx::create(
-//       nullptr,
-//       facebook::velox::core::QueryConfig{configValues},
-//       connectorConfigs,
-//       gluten::VeloxBackend::get()->getAsyncDataCache(),
-//       getDefaultMemoryManager()->getAggregateMemoryPool(),
-//       nullptr,
-//       fmt::format("Gluten_Cudf_Validation_VTID_{}", std::to_string(vtId++)));
-//   std::shared_ptr<facebook::velox::exec::Task> task = velox::exec::Task::create(
-//       fmt::format("Gluten_Cudf_Validation_VTID_{}", std::to_string(vtId++)),
-//       std::move(planFragment),
-//       0,
-//       std::move(queryCtx),
-//       velox::exec::Task::ExecutionMode::kSerial);
-//   const auto& operators = task->getDriver(0)->operators();
-//   for (const auto* op : operators) {
-//     if (dynamic_cast<const exec::TableScan*>(op) != nullptr) {
-//       continue;
-//     }
-//     if (cudf_velox::isCudfOperator(op)) {
-//       continue;
-//     }
-//     if (dynamic_cast<const ValueStream*>(op) != nullptr) {
-//       continue;
-//     }
-//     LOG(INFO) << "Operator " << op->operatorType() << " is not supported in cudf";
-//     task->requestCancel().wait();
-//     return false;
-//   }
-//   task->requestCancel().wait();
+  std::unordered_map<std::string, std::shared_ptr<velox::config::ConfigBase>> connectorConfigs;
+  static std::atomic<uint32_t> vtId{0};
+  std::shared_ptr<velox::core::QueryCtx> queryCtx = velox::core::QueryCtx::create(
+      nullptr,
+      facebook::velox::core::QueryConfig{configValues},
+      connectorConfigs,
+      gluten::VeloxBackend::get()->getAsyncDataCache(),
+      getDefaultMemoryManager()->getAggregateMemoryPool(),
+      nullptr,
+      fmt::format("Gluten_Cudf_Validation_VTID_{}", std::to_string(vtId++)));
+  std::shared_ptr<facebook::velox::exec::Task> task = velox::exec::Task::create(
+      fmt::format("Gluten_Cudf_Validation_VTID_{}", std::to_string(vtId++)),
+      std::move(planFragment),
+      0,
+      std::move(queryCtx),
+      velox::exec::Task::ExecutionMode::kSerial);
+  const auto& operators = task->getDriver(0)->operators();
+  for (const auto* op : operators) {
+    if (dynamic_cast<const exec::TableScan*>(op) != nullptr) {
+      continue;
+    }
+    if (cudf_velox::isCudfOperator(op)) {
+      continue;
+    }
+    if (dynamic_cast<const ValueStream*>(op) != nullptr) {
+      continue;
+    }
+    LOG(INFO) << "Operator " << op->operatorType() << " is not supported in cudf";
+    task->requestCancel().wait();
+    return false;
+  }
+  task->requestCancel().wait();
   LOG(INFO) << "Cudf Operator validation success";
   return true;
 }
