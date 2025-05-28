@@ -116,6 +116,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarCudf: Boolean = getConf(COLUMNAR_CUDF_ENABLED)
 
+  def forceColumnarCudf: Boolean = getConf(FORCE_COLUMNAR_CUDF)
+
   def enableExtendedColumnPruning: Boolean =
     getConf(ENABLE_EXTENDED_COLUMN_PRUNING)
 
@@ -1743,5 +1745,11 @@ object GlutenConfig {
       .doc("Enable or disable cudf support. This is an experimental feature.")
       .booleanConf
       .createWithDefault(true)
+
+  val FORCE_COLUMNAR_CUDF =
+    buildConf("spark.gluten.sql.columnar.cudf.force")
+      .doc("Force to execute by cudf even if many fallback.")
+      .booleanConf
+      .createWithDefault(false)
 
 }

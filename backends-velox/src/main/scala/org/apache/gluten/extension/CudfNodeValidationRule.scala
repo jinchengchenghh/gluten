@@ -32,7 +32,7 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
     plan.transformUp {
       case transformer: WholeStageTransformer =>
         if (
-          VeloxCudfPlanValidatorJniWrapper.validate(
+          glutenConf.forceColumnarCudf || VeloxCudfPlanValidatorJniWrapper.validate(
             transformer.substraitPlan.toProtobuf.toByteArray)
         ) {
           transformer.foreach {

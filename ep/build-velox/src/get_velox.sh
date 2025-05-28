@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/jinchengchenghh/velox.git
-VELOX_BRANCH=gpu_oap_all_519
+VELOX_BRANCH=gpu_oap_all_528
 VELOX_HOME=""
 
 OS=`uname -s`
