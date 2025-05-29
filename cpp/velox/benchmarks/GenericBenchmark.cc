@@ -445,7 +445,7 @@ auto BM_Generic = [](::benchmark::State& state,
       }
 
       auto resultIter = runtime->createResultIterator(
-          veloxSpillDir, std::move(inputIters), runtime->getConfMap(), Flags_cudf_enabled);
+          veloxSpillDir, std::move(inputIters), runtime->getConfMap(), FLAGS_cudf_enabled);
       listenerPtr->setIterator(resultIter.get());
 
       if (FLAGS_with_shuffle) {
