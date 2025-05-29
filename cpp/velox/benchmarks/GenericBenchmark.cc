@@ -426,8 +426,9 @@ auto BM_Generic = [](::benchmark::State& state,
       std::vector<FileReaderIterator*> inputItersRaw;
       if (!dataFiles.empty()) {
         for (const auto& input : dataFiles) {
-          inputIters.push_back(FileReaderIterator::getInputIteratorFromFileReader(
-              readerType, input, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool().get()));
+          inputIters.push_back(
+              FileReaderIterator::getInputIteratorFromFileReader(
+                  readerType, input, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool().get()));
         }
         std::transform(
             inputIters.begin(),
@@ -443,7 +444,8 @@ auto BM_Generic = [](::benchmark::State& state,
         runtime->parseSplitInfo(reinterpret_cast<uint8_t*>(split.data()), split.size(), std::nullopt);
       }
 
-      auto resultIter = runtime->createResultIterator(veloxSpillDir, std::move(inputIters), runtime->getConfMap(), false);
+      auto resultIter = runtime->createResultIterator(
+          veloxSpillDir, std::move(inputIters), runtime->getConfMap(), Flags_cudf_enabled);
       listenerPtr->setIterator(resultIter.get());
 
       if (FLAGS_with_shuffle) {
