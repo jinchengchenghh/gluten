@@ -77,6 +77,7 @@ DEFINE_string(
     "Scan mode for reading parquet data."
     "'stream' mode: Input file scan happens inside of the pipeline."
     "'buffered' mode: First read all data into memory and feed the pipeline with it.");
+DEFINE_bool(cudf_enabled, false, "Whether to enable gpu cudf.");
 DEFINE_bool(debug_mode, false, "Whether to enable debug mode. Same as setting `spark.gluten.sql.debug`");
 DEFINE_bool(query_trace_enabled, false, "Whether to enable query trace.");
 DEFINE_string(query_trace_dir, "", "Base dir of a query to store tracing data.");

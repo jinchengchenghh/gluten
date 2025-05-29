@@ -32,6 +32,7 @@
 #endif
 #ifdef GLUTEN_ENABLE_GPU
 #include "velox/experimental/cudf/exec/ToCudf.h"
+#include <iostream>
 #endif
 #include "compute/VeloxRuntime.h"
 #include "config/VeloxConfig.h"
@@ -160,6 +161,7 @@ void VeloxBackend::init(
 #ifdef GLUTEN_ENABLE_GPU
   FLAGS_velox_cudf_debug = backendConf_->get<bool>(kDebugModeEnabled, false);
   if (backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
+    std::cout<<"cudf is registered"<< std::endl;
     velox::cudf_velox::registerCudf();
   }
 
