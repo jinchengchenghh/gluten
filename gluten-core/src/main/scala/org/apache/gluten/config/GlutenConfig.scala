@@ -602,6 +602,7 @@ object GlutenConfig {
           NUM_TASK_SLOTS_PER_EXECUTOR.defaultValueString)),
       (COLUMNAR_SHUFFLE_CODEC.key, ""),
       (COLUMNAR_SHUFFLE_CODEC_BACKEND.key, ""),
+      (DEBUG_CUDF.key, "false"),
       ("spark.hadoop.input.connect.timeout", "180000"),
       ("spark.hadoop.input.read.timeout", "180000"),
       ("spark.hadoop.input.write.timeout", "180000"),
@@ -618,7 +619,6 @@ object GlutenConfig {
 
     val keys = Set(
       DEBUG_ENABLED.key,
-      DEBUG_CUDF.key,
       // datasource config
       SPARK_SQL_PARQUET_COMPRESSION_CODEC,
       // datasource config end
