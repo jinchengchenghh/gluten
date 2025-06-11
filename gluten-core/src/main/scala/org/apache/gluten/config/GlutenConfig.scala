@@ -618,6 +618,7 @@ object GlutenConfig {
 
     val keys = Set(
       DEBUG_ENABLED.key,
+      DEBUG_CUDF.key,
       // datasource config
       SPARK_SQL_PARQUET_COMPRESSION_CODEC,
       // datasource config end
