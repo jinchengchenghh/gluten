@@ -20,8 +20,10 @@ sudo dnf config-manager --add-repo https://developer.download.nvidia.com/compute
 sudo dnf install -y cuda nvidia-driver
 sudo dkms status
 
+touch ~/restart_cudf.sh
+echo "sudo dkms build nvidia/575.57.08 && sudo dkms install nvidia/575.57.08
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+sudo docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi" > ~/restart_cudf.sh
 # after reboot
-#sudo dkms build nvidia/575.57.08 && sudo dkms install nvidia/575.57.08
-#sudo nvidia-ctk runtime configure --runtime=docker
-#sudo systemctl restart docker
-#sudo docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi
+
