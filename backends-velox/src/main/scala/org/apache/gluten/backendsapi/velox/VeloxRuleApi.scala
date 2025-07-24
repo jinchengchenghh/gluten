@@ -118,7 +118,7 @@ object VeloxRuleApi {
       .getExtendedColumnarPostRules()
       .foreach(each => injector.injectPost(c => each(c.session)))
     injector.injectPost(c => ColumnarCollapseTransformStages(new GlutenConfig(c.sqlConf)))
-    injector.injectPost(c => CudfNodeValidationRule(new GlutenConfig(c.sqlConf)))
+    injector.injectPost(c => CudfNodeValidationRule(new GlutenConfig(c.sqlConf), c.session))
 
     injector.injectPost(c => GlutenNoopWriterRule(c.session))
 
@@ -208,7 +208,7 @@ object VeloxRuleApi {
       .getExtendedColumnarPostRules()
       .foreach(each => injector.injectPostTransform(c => each(c.session)))
     injector.injectPostTransform(c => ColumnarCollapseTransformStages(new GlutenConfig(c.sqlConf)))
-    injector.injectPostTransform(c => CudfNodeValidationRule(new GlutenConfig(c.sqlConf)))
+    injector.injectPostTransform(c => CudfNodeValidationRule(new GlutenConfig(c.sqlConf), c.session))
     injector.injectPostTransform(c => GlutenNoopWriterRule(c.session))
     injector.injectPostTransform(c => RemoveGlutenTableCacheColumnarToRow(c.session))
     injector.injectPostTransform(

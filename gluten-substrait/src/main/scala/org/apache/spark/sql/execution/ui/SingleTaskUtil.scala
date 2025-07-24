@@ -14,43 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension
+package org.apache.spark.sql.execution.ui
 
-import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.execution.{CudfTag, LeafTransformSupport, WholeStageTransformer}
-import org.apache.spark.resource.{ExecutorResourceRequest, ResourceProfile, TaskResourceRequest}
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{SparkPlan, GlutenAutoAdjustStageResourceProfile => GlutenResourceProfile}
-import org.apache.spark.sql.execution.ui.SingleTaskUtil
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.resource.{ExecutorResourceRequest, ResourceProfile, TaskResourceRequest}
+import org.apache.spark.sql.execution.{GlutenAutoAdjustStageResourceProfile => GlutenResourceProfile}
 
 import scala.collection.mutable
 
-// Add the node name prefix 'Cudf' to GlutenPlan when can offload to cudf
-case class CudfNodeValidationRule(glutenConf: GlutenConfig, spark: SparkSession) extends Rule[SparkPlan] {
-
-  override def apply(plan: SparkPlan): SparkPlan = {
-    if (!glutenConf.enableColumnarCudf) {
-      return plan
-    }
-    var isCudfPlan = false
-    val transformPlan = plan.transformUp {
-      case transformer: WholeStageTransformer =>
-        if (!transformer.exists {
-          case _: LeafTransformSupport => true
-          case _ => false
-        }) {
-          transformer.setTagValue(CudfTag.CudfTag, false)
-        } else {
-          isCudfPlan = true
-        }
-        transformer
-    }
-    if (isCudfPlan) {
-      SingleTaskUtil.applySingleTask(spark)
-    }
-    transformPlan
-  }
+object SingleTaskUtil {
 
   def applySingleTask(spark: SparkSession, plan: SparkPlan): SparkPlan = {
     val rpManager = spark.sparkContext.resourceProfileManager
@@ -69,6 +42,4 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig, spark: SparkSession)
       rpManager,
       spark.sparkContext.getConf)
   }
-
-
 }
