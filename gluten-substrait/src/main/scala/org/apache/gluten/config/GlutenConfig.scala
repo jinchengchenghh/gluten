@@ -110,6 +110,8 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def enableColumnarCudf: Boolean = getConf(COLUMNAR_CUDF_ENABLED)
 
+  def cudfConcurrentTasks: Int = getConf(COLUMNAR_CUDF_CONCURRENT_TASKS)
+
   def enableExtendedColumnPruning: Boolean =
     getConf(ENABLE_EXTENDED_COLUMN_PRUNING)
 
@@ -1589,6 +1591,12 @@ object GlutenConfig {
       .doc("Enable or disable cudf support. This is an experimental feature.")
       .booleanConf
       .createWithDefault(false)
+
+  val COLUMNAR_CUDF_CONCURRENT_TASKS =
+    buildConf("spark.gluten.sql.columnar.cudf.concurrentTasks")
+      .doc("Number of concurrent tasks to run on one GPU")
+      .intConf
+      .createWithDefault(1)
 
   val COLUMNAR_COLLECT_TAIL_ENABLED =
     buildConf("spark.gluten.sql.columnar.collectTail")

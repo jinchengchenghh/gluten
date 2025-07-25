@@ -42,8 +42,10 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig, spark: SparkSession)
         ) {
           transformer.setTagValue(CudfTag.CudfTag, false)
           transformer
-        } else {
+        } else if (glutenConf.cudfConcurrentTasks == 1) {
           SingleTaskUtil.applySingleTask(spark, transformer)
+        } else {
+          transformer
         }
     }
     transformPlan
