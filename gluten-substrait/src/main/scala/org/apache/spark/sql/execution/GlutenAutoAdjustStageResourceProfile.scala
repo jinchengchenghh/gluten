@@ -153,7 +153,7 @@ object GlutenAutoAdjustStageResourceProfile extends Logging {
     planNodes
   }
 
-  private def getFinalResourceProfile(
+  def getFinalResourceProfile(
       rpManager: ResourceProfileManager,
       newRP: ResourceProfile): ResourceProfile = {
     // Just for test
