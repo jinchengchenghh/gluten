@@ -35,7 +35,7 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig, spark: SparkSession)
     val transformPlan = plan.transformUp {
       case transformer: WholeStageTransformer =>
         if (
-          !transformer.exists {
+          transformer.exists {
             case _: LeafTransformSupport => true
             case _ => false
           }
