@@ -22,7 +22,7 @@ import org.apache.gluten.execution.{CudfTag, LeafTransformSupport, WholeStageTra
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.ui.SingleTaskUtil
+import org.apache.spark.sql.execution.utils.SingleTaskUtil
 
 // Add the node name prefix 'Cudf' to GlutenPlan when can offload to cudf
 case class CudfNodeValidationRule(glutenConf: GlutenConfig, spark: SparkSession)

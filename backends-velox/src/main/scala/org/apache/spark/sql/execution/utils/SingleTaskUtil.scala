@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.ui
+package org.apache.spark.sql.execution.utils
 
 import org.apache.spark.resource.{ExecutorResourceRequest, ResourceProfile, TaskResourceRequest}
 import org.apache.spark.sql.SparkSession
@@ -25,18 +25,20 @@ import scala.collection.mutable
 
 object SingleTaskUtil {
 
+  val GPU_RESOURCE = "gpu"
+
   def applySingleTask(spark: SparkSession, plan: SparkPlan): SparkPlan = {
     val rpManager = spark.sparkContext.resourceProfileManager
     val defaultRP = rpManager.defaultResourceProfile
-
+    val scriptPath = getClass.getClassLoader
+      .getResource("")
+      .getPath + "/org/apache/gluten/script/gpuDiscoveryScript.sh"
     // initial resource profile config as default resource profile
     val taskResource = mutable.Map.empty[String, TaskResourceRequest] ++= defaultRP.taskResources
     val executorResource =
       mutable.Map.empty[String, ExecutorResourceRequest] ++= defaultRP.executorResources
-    executorResource.put(
-      ResourceProfile.CORES,
-      new ExecutorResourceRequest(ResourceProfile.CORES, 1))
-    taskResource.put(ResourceProfile.CORES, new TaskResourceRequest(ResourceProfile.CORES, 1))
+    executorResource.put(GPU_RESOURCE, new ExecutorResourceRequest(GPU_RESOURCE, 1, scriptPath))
+    taskResource.put(GPU_RESOURCE, new TaskResourceRequest(GPU_RESOURCE, 1))
     val newRP = new ResourceProfile(executorResource.toMap, taskResource.toMap)
     val finalRP = getFinalResourceProfile(rpManager, newRP)
     ApplyResourceProfileExec(plan, finalRP)
