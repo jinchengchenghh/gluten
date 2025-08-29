@@ -68,6 +68,10 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
     getConf(VELOX_PROPAGATE_IGNORE_NULL_KEYS_ENABLED)
 
   def floatingPointMode: String = getConf(FLOATING_POINT_MODE)
+
+  def cudfConcurrentTasks: Int = getConf(COLUMNAR_CUDF_CONCURRENT_TASKS)
+
+  def cudfDynamicSchedule: Boolean = getConf(CUDF_DYNAMIC_SCHEDULE)
 }
 
 object VeloxConfig {
@@ -629,6 +633,19 @@ object VeloxConfig {
       .doc("Enable check memory usage leak.")
       .booleanConf
       .createWithDefault(true)
+
+  val CUDF_DYNAMIC_SCHEDULE =
+    buildConf("spark.gluten.sql.columnar.cudf.dynamicSchedule")
+      .doc(
+        "Some of cluster node may not contains GPU, use ResourceProfile to schedule the node to GPU node.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_CUDF_CONCURRENT_TASKS =
+    buildConf("spark.gluten.sql.columnar.cudf.concurrentTasks")
+      .doc("Number of concurrent tasks to run on one GPU")
+      .intConf
+      .createWithDefault(1)
 
   val CUDF_MEMORY_RESOURCE =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.cudf.memoryResource")

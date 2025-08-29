@@ -16,13 +16,13 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.execution.{CudfTag, LeafTransformSupport, WholeStageTransformer}
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.utils.SingleTaskUtil
+import org.apache.spark.sql.execution.utils.TaskResourceUtil
 
 // Add the node name prefix 'Cudf' to GlutenPlan when can offload to cudf
 case class CudfNodeValidationRule(glutenConf: GlutenConfig, spark: SparkSession)
@@ -42,8 +42,8 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig, spark: SparkSession)
         ) {
           transformer.setTagValue(CudfTag.CudfTag, false)
           transformer
-        } else if (glutenConf.cudfConcurrentTasks == 1) {
-          SingleTaskUtil.applySingleTask(spark, transformer)
+        } else if (VeloxConfig.get.cudfDynamicSchedule) {
+          TaskResourceUtil.applySingleTask(spark, transformer)
         } else {
           transformer
         }

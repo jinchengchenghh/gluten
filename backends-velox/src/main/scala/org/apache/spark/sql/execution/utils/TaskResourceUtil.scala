@@ -23,7 +23,7 @@ import org.apache.spark.sql.execution.GlutenAutoAdjustStageResourceProfile.getFi
 
 import scala.collection.mutable
 
-object SingleTaskUtil {
+object TaskResourceUtil {
 
   val GPU_RESOURCE = "gpu"
 
@@ -42,6 +42,9 @@ object SingleTaskUtil {
       GPU_RESOURCE,
       new ExecutorResourceRequest(GPU_RESOURCE, 1, scriptPath, "nvidia"))
     taskResource.put(GPU_RESOURCE, new TaskResourceRequest(GPU_RESOURCE, 1))
+    executorResource.put(
+      ResourceProfile.CORES,
+      new ExecutorResourceRequest(ResourceProfile.CORES, 1))
     val newRP = new ResourceProfile(executorResource.toMap, taskResource.toMap)
     val finalRP = getFinalResourceProfile(rpManager, newRP)
     ApplyResourceProfileExec(plan, finalRP)
