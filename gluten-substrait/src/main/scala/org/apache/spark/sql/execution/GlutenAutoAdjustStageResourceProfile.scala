@@ -19,7 +19,6 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.config.{GlutenConfig, GlutenCoreConfig}
 import org.apache.gluten.execution.{ColumnarToRowExecBase, GlutenPlan}
 import org.apache.gluten.logging.LogLevelUtil
-
 import org.apache.spark.SparkConf
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.internal.Logging
@@ -27,6 +26,7 @@ import org.apache.spark.internal.config.{CPUS_PER_TASK, EXECUTOR_CORES, MEMORY_O
 import org.apache.spark.resource.{ExecutorResourceRequest, ResourceProfile, ResourceProfileManager, TaskResourceRequest}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.GlutenAutoAdjustStageResourceProfile.log
 import org.apache.spark.sql.execution.{GlutenAutoAdjustStageResourceProfile => GlutenResourceProfile}
 import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.command.{DataWritingCommandExec, ExecutedCommandExec}
@@ -117,6 +117,7 @@ case class GlutenAutoAdjustStageResourceProfile(glutenConf: GlutenConfig, spark:
         ResourceProfile.CORES,
         new ExecutorResourceRequest(ResourceProfile.CORES, 1))
       val newRP = new ResourceProfile(executorResource.toMap, taskResource.toMap)
+      log.info(s"Try to Apply resource profile $newRP for plan")
       return GlutenResourceProfile.applyNewResourceProfileIfPossible(
         plan,
         newRP,
@@ -133,9 +134,9 @@ case class GlutenAutoAdjustStageResourceProfile(glutenConf: GlutenConfig, spark:
       val newExecutorMemory =
         new ExecutorResourceRequest(ResourceProfile.MEMORY, newMemoryAmount.toLong)
       executorResource.put(ResourceProfile.MEMORY, newExecutorMemory)
-      executorResource.put(
-        ResourceProfile.CORES,
-        new ExecutorResourceRequest(ResourceProfile.CORES, 1))
+//      executorResource.put(
+//        ResourceProfile.CORES,
+//        new ExecutorResourceRequest(ResourceProfile.CORES, 1))
       val newRP = new ResourceProfile(executorResource.toMap, taskResource.toMap)
       return GlutenResourceProfile.applyNewResourceProfileIfPossible(
         plan,
