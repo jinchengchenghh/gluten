@@ -17,11 +17,13 @@
 package org.apache.gluten.extension
 
 import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
-import org.apache.gluten.execution.{CudfTag, LeafTransformSupport, WholeStageTransformer}
+import org.apache.gluten.execution.{CudfTag, LeafTransformSupport, VeloxResizeBatchesExec, WholeStageTransformer}
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ApplyResourceProfileExec, SparkPlan}
+import org.apache.spark.sql.execution.ColumnarShuffleExchangeExec
+import org.apache.spark.sql.execution.exchange.Exchange
 import org.apache.spark.sql.execution.utils.TaskResourceUtil
 
 // Add the node name prefix 'Cudf' to GlutenPlan when can offload to cudf
@@ -32,6 +34,7 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig, spark: SparkSession)
     if (!glutenConf.enableColumnarCudf) {
       return plan
     }
+    var planContainsLeaf = false
     val transformPlan = plan.transformUp {
       case transformer: WholeStageTransformer =>
         if (
@@ -40,17 +43,28 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig, spark: SparkSession)
             case _ => false
           }
         ) {
+          planContainsLeaf = true
           transformer.setTagValue(CudfTag.CudfTag, false)
           transformer
-        } else if (VeloxConfig.get.cudfDynamicSchedule) {
-          val rp = TaskResourceUtil.getSingleTaskResourceProfile(spark)
-          val wrapperPlan = ApplyResourceProfileExec(transformer, rp)
-          logInfo(s"Apply resource profile $rp for plan ${wrapperPlan.toString()}")
-          wrapperPlan
         } else {
           transformer
         }
     }
-    transformPlan
+    if (planContainsLeaf) {
+      return transformPlan
+    }
+    transformPlan match {
+      case ColumnarShuffleExchangeExec(
+            _,
+            VeloxResizeBatchesExec(WholeStageTransformer(_, _), _, _) | WholeStageTransformer(_, _),
+            _,
+            _,
+            _) =>
+        val rp = TaskResourceUtil.getSingleTaskResourceProfile(spark)
+        val wrapperPlan = ApplyResourceProfileExec(transformPlan.children.head, rp)
+        log.info(s"Apply resource profile $rp for plan ${wrapperPlan.nodeName}")
+        transformPlan.withNewChildren(IndexedSeq(wrapperPlan))
+      case _ => transformPlan
+    }
   }
 }

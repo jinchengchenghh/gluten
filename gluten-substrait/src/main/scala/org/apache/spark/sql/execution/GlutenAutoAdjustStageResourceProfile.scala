@@ -71,7 +71,8 @@ case class GlutenAutoAdjustStageResourceProfile(glutenConf: GlutenConfig, spark:
 
     if (!plan.isInstanceOf[Exchange]) {
       log.info(
-        s"Plan is not an Exchange (type: ${plan.getClass.getSimpleName}), skipping resource adjustment")
+        s"Plan is not an Exchange (type: ${plan.getClass.getSimpleName}), " +
+          s"skipping resource adjustment")
       return plan
     }
 
