@@ -637,7 +637,8 @@ object VeloxConfig {
   val CUDF_DYNAMIC_SCHEDULE =
     buildConf("spark.gluten.sql.columnar.cudf.dynamicSchedule")
       .doc(
-        "Some of cluster node may not contains GPU, use ResourceProfile to schedule the node to GPU node.")
+        "Some of cluster node may not contains GPU, use ResourceProfile to schedule the node to" +
+          "GPU node.")
       .booleanConf
       .createWithDefault(true)
 
