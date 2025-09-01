@@ -167,7 +167,6 @@ void VeloxBackend::init(
     FLAGS_velox_cudf_debug = backendConf_->get<bool>(kDebugCudf, kDebugCudfDefault);
     FLAGS_velox_cudf_memory_resource = backendConf_->get<std::string>(kCudfMemoryResource, kCudfMemoryResourceDefault);
     auto& options = velox::cudf_velox::CudfOptions::getInstance();
-    options.memoryPercent = backendConf_->get<int32_t>(kCudfMemoryPercent, kCudfMemoryPercentDefault);
     velox::cudf_velox::registerCudf(options);
   }
 #endif
