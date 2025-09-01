@@ -16,14 +16,13 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{CudfTag, LeafTransformSupport, VeloxResizeBatchesExec, WholeStageTransformer}
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ApplyResourceProfileExec, SparkPlan}
 import org.apache.spark.sql.execution.ColumnarShuffleExchangeExec
-import org.apache.spark.sql.execution.exchange.Exchange
 import org.apache.spark.sql.execution.utils.TaskResourceUtil
 
 // Add the node name prefix 'Cudf' to GlutenPlan when can offload to cudf
