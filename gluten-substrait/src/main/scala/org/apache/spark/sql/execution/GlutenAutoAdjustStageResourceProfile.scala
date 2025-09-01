@@ -52,24 +52,34 @@ case class GlutenAutoAdjustStageResourceProfile(glutenConf: GlutenConfig, spark:
   lazy val sparkConf = spark.sparkContext.getConf
 
   override def apply(plan: SparkPlan): SparkPlan = {
+    log.info(s"Starting stage resource profile adjustment check $plan.toString()")
+
     if (!glutenConf.enableAutoAdjustStageResourceProfile) {
+      log.info("Auto-adjust stage resource profile is disabled in glutenConf")
       return plan
     }
+
     if (!SQLConf.get.adaptiveExecutionEnabled) {
+      log.info("Adaptive execution is disabled in SQLConf")
       return plan
     }
-    // Starting here, the resource profile may differ between stages. Configure resource settings
-    // using the default profile to prevent any impact from the previous stage. If a new resource
-    // profile is applied, the settings will be updated accordingly.
+
+    log.info("Updating resource settings with default profile")
     GlutenResourceProfile.updateResourceSetting(
       ResourceProfile.getOrCreateDefaultProfile(sparkConf),
       sparkConf)
+
     if (!plan.isInstanceOf[Exchange]) {
-      // todo: support set resource profile for final stage
+      log.info(
+        s"Plan is not an Exchange (type: ${plan.getClass.getSimpleName}), skipping resource adjustment")
       return plan
     }
+
+    log.info("Collecting stage plan nodes")
     val planNodes = GlutenResourceProfile.collectStagePlan(plan)
+
     if (planNodes.isEmpty) {
+      log.info("No plan nodes collected, skipping resource adjustment")
       return plan
     }
     log.info(s"detailPlanNodes ${planNodes.map(_.nodeName).mkString("Array(", ", ", ")")}")
@@ -89,8 +99,8 @@ case class GlutenAutoAdjustStageResourceProfile(glutenConf: GlutenConfig, spark:
       mutable.Map.empty[String, ExecutorResourceRequest] ++= defaultRP.executorResources
     val memoryRequest = executorResource.get(ResourceProfile.MEMORY)
     val offheapRequest = executorResource.get(ResourceProfile.OFFHEAP_MEM)
-    logInfo(s"default memory request $memoryRequest")
-    logInfo(s"default offheap request $offheapRequest")
+    log.info(s"default memory request $memoryRequest")
+    log.info(s"default offheap request $offheapRequest")
 
     // case 1: whole stage fallback to vanilla spark in such case we increase the heap
     if (wholeStageFallback) {
@@ -206,7 +216,7 @@ object GlutenAutoAdjustStageResourceProfile extends Logging {
     val finalRP = getFinalResourceProfile(rpManager, rp)
     // Wrap the plan with ApplyResourceProfileExec so that we can apply new ResourceProfile
     val wrapperPlan = ApplyResourceProfileExec(plan.children.head, finalRP)
-    logInfo(s"Apply resource profile $finalRP for plan ${wrapperPlan.nodeName}")
+    log.info(s"Apply resource profile $finalRP for plan ${wrapperPlan.nodeName}")
     plan.withNewChildren(IndexedSeq(wrapperPlan))
   }
 }

@@ -44,7 +44,7 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig, spark: SparkSession)
           transformer
         } else if (VeloxConfig.get.cudfDynamicSchedule) {
           val rp = TaskResourceUtil.getSingleTaskResourceProfile(spark)
-          val wrapperPlan = ApplyResourceProfileExec(plan, rp)
+          val wrapperPlan = ApplyResourceProfileExec(transformer, rp)
           logInfo(s"Apply resource profile $rp for plan ${wrapperPlan.toString()}")
           wrapperPlan
         } else {
