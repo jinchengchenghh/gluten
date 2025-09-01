@@ -113,9 +113,9 @@ case class GlutenAutoAdjustStageResourceProfile(glutenConf: GlutenConfig, spark:
       val newExecutorOffheap =
         new ExecutorResourceRequest(ResourceProfile.OFFHEAP_MEM, offheapRequest.get.amount / 10)
       executorResource.put(ResourceProfile.OFFHEAP_MEM, newExecutorOffheap)
-      executorResource.put(
-        ResourceProfile.CORES,
-        new ExecutorResourceRequest(ResourceProfile.CORES, 1))
+//      executorResource.put(
+//        ResourceProfile.CORES,
+//        new ExecutorResourceRequest(ResourceProfile.CORES, 1))
       val newRP = new ResourceProfile(executorResource.toMap, taskResource.toMap)
       return GlutenResourceProfile.applyNewResourceProfileIfPossible(
         plan,
