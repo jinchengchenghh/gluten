@@ -177,4 +177,9 @@ const std::string kCudfMemoryResourceDefault =
 const std::string kCudfMemoryPercent = "spark.gluten.sql.columnar.backend.velox.cudf.memoryPercent";
 const int32_t kCudfMemoryPercentDefault = 50;
 
+const std::string kCudfEnableTableScan = "spark.gluten.sql.columnar.backend.velox.cudf.enableTableScan";
+const bool kCudfEnableTableScanDefault = true;
+
+const std::string kCudfHiveConnectorId = "cudf-hive-connector";
+
 } // namespace gluten

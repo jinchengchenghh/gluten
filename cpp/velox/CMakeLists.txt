@@ -414,6 +414,15 @@ if(ENABLE_GPU)
   import_library(
     facebook::velox::velox_cudf_vector
     ${VELOX_BUILD_PATH}/velox/experimental/cudf/vector/libvelox_cudf_vector.a)
+  import_library(
+    facebook::velox::velox_cudf_vector
+    ${VELOX_BUILD_PATH}/velox/experimental/cudf/vector/libvelox_cudf_parquet_connector.a)
+  import_library(
+    facebook::velox::velox_cudf_vector
+    ${VELOX_BUILD_PATH}/velox/experimental/cudf/vector/libvelox_cudf_parquet_connector.a)
+  target_include_directories(
+  velox
+  PRIVATE ${VELOX_BUILD_PATH}/_deps/cudf-build/include)
 
   target_link_libraries(velox PUBLIC facebook::velox::velox_cudf_exec
                                      facebook::velox::velox_cudf_vector)

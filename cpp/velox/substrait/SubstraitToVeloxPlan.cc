@@ -34,6 +34,14 @@
 namespace gluten {
 namespace {
 
+std::string getConnectorId() {
+  #ifdef GLUTEN_ENABLE_GPU
+  return kCudfHiveConnectorId;
+  #else
+  return kHiveConnectorId;
+  #endif
+}
+
 core::SortOrder toSortOrder(const ::substrait::SortField& sortField) {
   switch (sortField.direction()) {
     case ::substrait::SortField_SortDirection_SORT_DIRECTION_ASC_NULLS_FIRST:
@@ -682,7 +690,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       tableColumnNames,
       std::nullopt, /*columnStatsSpec*/
       std::make_shared<core::InsertTableHandle>(
-          kHiveConnectorId,
+          getConnectorId(),
           makeHiveInsertTableHandle(
               tableColumnNames, /*inputType->names() clolumn name is different*/
               inputType->children(),
@@ -1290,13 +1298,13 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   std::shared_ptr<connector::hive::HiveTableHandle> tableHandle;
   if (!readRel.has_filter()) {
     tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
-        kHiveConnectorId, "hive_table", filterPushdownEnabled, common::SubfieldFilters{}, nullptr, dataColumns);
+        getConnectorId(), "hive_table", filterPushdownEnabled, common::SubfieldFilters{}, nullptr, dataColumns);
   } else {
     common::SubfieldFilters subfieldFilters;
     auto remainingFilter = exprConverter_->toVeloxExpr(readRel.filter(), dataColumns);
 
     tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
-        kHiveConnectorId,
+        getConnectorId(),
         "hive_table",
         filterPushdownEnabled,
         std::move(subfieldFilters),
