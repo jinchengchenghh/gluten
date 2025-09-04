@@ -32,6 +32,7 @@
 #include "config/VeloxConfig.h"
 
 #ifdef GLUTEN_ENABLE_GPU
+#include "velox/experimental/cudf/exec/ToCudf.h"
 #include "velox/experimental/cudf/exec/VeloxCudfInterop.h"
 #include "velox/experimental/cudf/connectors/parquet/ParquetDataSink.h"
 #include "velox/experimental/cudf/connectors/parquet/ParquetTableHandle.h"
@@ -164,7 +165,11 @@ RowTypePtr getJoinOutputType(
 } // namespace
 
 bool SplitInfo::canUseCudfConnector() {
-  return partitionColumns.empty() && format == dwio::common::FileFormat::PARQUET && veloxCfg_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault);
+  #ifdef GLUTEN_ENABLE_GPU
+  return partitionColumns.empty() && format == dwio::common::FileFormat::PARQUET && FLAGS_velox_cudf_table_scan;
+  #else
+  return false;
+  #endif
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::processEmit(
