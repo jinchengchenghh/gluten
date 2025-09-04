@@ -109,6 +109,7 @@ WholeStageResultIterator::WholeStageResultIterator(
     throw std::runtime_error("Invalid scan information.");
   }
 
+  LOG(INFO) << "check the scan info size " << scanInfos.size();
   for (const auto& scanInfo : scanInfos) {
     // Get the information for TableScan.
     // Partition index in scan info is not used.
@@ -121,7 +122,7 @@ WholeStageResultIterator::WholeStageResultIterator(
     const auto& metadataColumns = scanInfo->metadataColumns;
     // In the pre-condition all the spli infos has same partition column and format.
     const auto canUseCudfConnector = scanInfo->canUseCudfConnector();
-
+    
     std::vector<std::shared_ptr<velox::connector::ConnectorSplit>> connectorSplits;
     connectorSplits.reserve(paths.size());
     for (int idx = 0; idx < paths.size(); idx++) {
@@ -149,9 +150,10 @@ WholeStageResultIterator::WholeStageResultIterator(
             std::unordered_map<std::string, std::string>(),
             properties[idx]);
       } else {
-#ifdef GLUTEN_ENABLE_GPU
         if (canUseCudfConnector) {
-          LOG(INFO) << "use gpu split";
+          LOG(INFO) << "================= use gpu split";
+#ifdef GLUTEN_ENABLE_GPU
+
           split = std::make_shared<velox::cudf_velox::connector::parquet::ParquetConnectorSplit>(
                       kCudfParquetConnectorId,
                       paths[idx],
@@ -159,6 +161,7 @@ WholeStageResultIterator::WholeStageResultIterator(
                       lengths[idx],
                       0 /*splitWeight*/,
                       metadataColumn);
+#endif
         } else {
           split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
                       kHiveConnectorId,
@@ -176,24 +179,6 @@ WholeStageResultIterator::WholeStageResultIterator(
                       metadataColumn,
                       properties[idx]);
         }
-
-#else
-        split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
-            kHiveConnectorId,
-            paths[idx],
-            format,
-            starts[idx],
-            lengths[idx],
-            partitionKeys,
-            std::nullopt /*tableBucketName*/,
-            std::unordered_map<std::string, std::string>(),
-            nullptr,
-            std::unordered_map<std::string, std::string>(),
-            0,
-            true,
-            metadataColumn,
-            properties[idx]);
-#endif
       }
       connectorSplits.emplace_back(split);
     }
