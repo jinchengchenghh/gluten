@@ -23,6 +23,7 @@
 #include "velox/exec/PlanNodeStats.h"
 #ifdef GLUTEN_ENABLE_GPU
 #include "velox/experimental/cudf/exec/ToCudf.h"
+#include "velox/experimental/cudf/connectors/parquet/ParquetConnectorSplit.h"
 #endif
 
 using namespace facebook;
@@ -118,6 +119,8 @@ WholeStageResultIterator::WholeStageResultIterator(
     const auto& format = scanInfo->format;
     const auto& partitionColumns = scanInfo->partitionColumns;
     const auto& metadataColumns = scanInfo->metadataColumns;
+    // In the pre-condition all the spli infos has same partition column and format.
+    const auto canUseCudfConnector = scanInfo->canUseCudfConnector();
 
     std::vector<std::shared_ptr<velox::connector::ConnectorSplit>> connectorSplits;
     connectorSplits.reserve(paths.size());
@@ -147,8 +150,8 @@ WholeStageResultIterator::WholeStageResultIterator(
             properties[idx]);
       } else {
 #ifdef GLUTEN_ENABLE_GPU
-        if (partitionKeys.empty() && format == dwio::common::FileFormat::PARQUET) {
-        split = std::make_shared<velox::cudf_velox::connector::parquet::ParquetConnectorSplit>(
+        if (canUseCudfConnector) {
+          split = std::make_shared<velox::cudf_velox::connector::parquet::ParquetConnectorSplit>(
                       kCudfHiveConnectorId,
                       paths[idx],
                       starts[idx],

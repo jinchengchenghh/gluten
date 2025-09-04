@@ -171,19 +171,6 @@ void VeloxBackend::init(
     auto& options = velox::cudf_velox::CudfOptions::getInstance();
     options.memoryPercent = backendConf_->get<int32_t>(kCudfMemoryPercent, kCudfMemoryPercentDefault);
     velox::cudf_velox::registerCudf(options);
-    if (FLAGS_velox_cudf_table_scan) {
-      velox::connector::registerConnectorFactory(
-      std::make_shared<velox::cudf_velox::connector::parquet::ParquetConnectorFactory>());
-    auto parquetConnector =
-        velox::connector::getConnectorFactory(
-            velox::cudf_velox::connector::parquet::ParquetConnectorFactory::kParquetConnectorName)
-            ->newConnector(
-                kCudfHiveConnectorId,
-                hiveConf,
-                ioExecutor_.get());
-    velox::connector::registerConnector(parquetConnector);
-    }
-
   }
 #endif
 
