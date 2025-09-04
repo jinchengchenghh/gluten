@@ -126,10 +126,13 @@ WholeStageResultIterator::WholeStageResultIterator(
     std::vector<std::shared_ptr<velox::connector::ConnectorSplit>> connectorSplits;
     connectorSplits.reserve(paths.size());
     for (int idx = 0; idx < paths.size(); idx++) {
-      auto partitionColumn = partitionColumns[idx];
       auto metadataColumn = metadataColumns[idx];
       std::unordered_map<std::string, std::optional<std::string>> partitionKeys;
-      constructPartitionColumns(partitionKeys, partitionColumn);
+      if (!partitionColumns.empty()) {
+        auto partitionColumn = partitionColumns[idx];
+        constructPartitionColumns(partitionKeys, partitionColumn);
+      }
+
       std::shared_ptr<velox::connector::ConnectorSplit> split;
       if (auto icebergSplitInfo = std::dynamic_pointer_cast<IcebergSplitInfo>(scanInfo)) {
         // Set Iceberg split.
