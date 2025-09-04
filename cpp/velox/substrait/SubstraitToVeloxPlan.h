@@ -55,12 +55,10 @@ struct SplitInfo {
   /// The file sizes and modification times of the files to be scanned.
   std::vector<std::optional<facebook::velox::FileProperties>> properties;
 
-  bool canUseCudfConnector() {
-    return partitionColumns.empty() && format == dwio::common::FileFormat::PARQUET && FLAGS_velox_cudf_table_scan;
-  }
-
   /// Make SplitInfo polymorphic
   virtual ~SplitInfo() = default;
+
+  bool canUseCudfConnector();
 };
 
 /// This class is used to convert the Substrait plan into Velox plan.

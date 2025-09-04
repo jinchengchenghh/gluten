@@ -163,6 +163,10 @@ RowTypePtr getJoinOutputType(
 
 } // namespace
 
+bool SplitInfo::canUseCudfConnector() {
+  return partitionColumns.empty() && format == dwio::common::FileFormat::PARQUET && veloxCfg_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault);
+}
+
 core::PlanNodePtr SubstraitToVeloxPlanConverter::processEmit(
     const ::substrait::RelCommon& relCommon,
     const core::PlanNodePtr& noEmitNode) {
