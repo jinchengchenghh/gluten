@@ -173,7 +173,12 @@ bool SplitInfo::canUseCudfConnector() {
           << ", FLAGS_velox_cudf_table_scan: " << FLAGS_velox_cudf_table_scan
           << " → Use cuDF Table Scan: "
           << (partitionColumns.empty() && format == dwio::common::FileFormat::PARQUET && FLAGS_velox_cudf_table_scan);
-
+  for (size_t i = 0; i < partitionColumns.size(); ++i) {
+    LOG(INFO) << "Partition " << i << ":";
+    for (const auto& kv : partitionColumns[i]) {
+      LOG(INFO) << "  " << kv.first << " = " << kv.second;
+    }
+  }
   return partitionColumns.empty() && format == dwio::common::FileFormat::PARQUET && FLAGS_velox_cudf_table_scan;
   #else
   return false;
