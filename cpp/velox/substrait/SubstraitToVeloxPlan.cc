@@ -736,8 +736,9 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   std::shared_ptr<core::InsertTableHandle> tableHandle;
   if (useCudfTableHandle(splitInfos_)) {
 #ifdef GLUTEN_ENABLE_GPU
+    LOG(INFO) << "use gpu insert table handle";
     tableHandle =  std::make_shared<core::InsertTableHandle>(
-          kCudfHiveConnectorId,
+          kCudfParquetConnectorId,
           makeCudfParquetInsertTableHandle(
               tableColumnNames, /*inputType->names() clolumn name is different*/
               inputType->children(),
@@ -1365,8 +1366,9 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   auto remainingFilter = readRel.has_filter() ? exprConverter_->toVeloxExpr(readRel.filter(), dataColumns) : nullptr;
   if (useCudfTableHandle(splitInfos_)) {
 #ifdef GLUTEN_ENABLE_GPU
+  LOG(INFO) << "use gpu read ParquetTableHandle";
     tableHandle = std::make_shared<cudf_velox::connector::parquet::ParquetTableHandle>(
-          kCudfHiveConnectorId,
+          kCudfParquetConnectorId,
           "hive_table",
           filterPushdownEnabled,
           nullptr,

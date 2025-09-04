@@ -181,6 +181,6 @@ const std::string kCudfEnableTableScan = "spark.gluten.sql.columnar.backend.velo
 const bool kCudfEnableTableScanDefault = true;
 
 // The name should aligns with cudf connector fallback condition.
-const std::string kCudfHiveConnectorId = "test-parquet";
+const std::string kCudfParquetConnectorId = "test-parquet";
 
 } // namespace gluten

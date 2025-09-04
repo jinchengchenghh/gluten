@@ -151,8 +151,9 @@ WholeStageResultIterator::WholeStageResultIterator(
       } else {
 #ifdef GLUTEN_ENABLE_GPU
         if (canUseCudfConnector) {
+          LOG(INFO) << "use gpu split";
           split = std::make_shared<velox::cudf_velox::connector::parquet::ParquetConnectorSplit>(
-                      kCudfHiveConnectorId,
+                      kCudfParquetConnectorId,
                       paths[idx],
                       starts[idx],
                       lengths[idx],

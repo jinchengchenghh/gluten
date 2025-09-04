@@ -313,7 +313,7 @@ void VeloxBackend::initConnector(const std::shared_ptr<velox::config::ConfigBase
         facebook::velox::connector::getConnectorFactory(
             cudf_velox::connector::parquet::ParquetConnectorFactory::kParquetConnectorName)
             ->newConnector(
-                kCudfHiveConnectorId,
+                kCudfParquetConnectorId,
                 hiveConf,
                 ioExecutor_.get());
     facebook::velox::connector::registerConnector(parquetConnector);
