@@ -44,12 +44,14 @@ namespace {
   bool useCudfTableHandle(const std::vector<std::shared_ptr<SplitInfo>>& splitInfos) {
 #ifdef GLUTEN_ENABLE_GPU
   if (splitInfos.empty()) {
+    LOG(INFO) << "split info is empty";
     return false;
   }
-
+LOG(INFO) << "split info can use cudf connector";
   return splitInfos[0]->canUseCudfConnector();
 
 #else
+LOG(INFO) << "return false in gpu not mode";
   return false;
 #endif  
 }
@@ -166,6 +168,12 @@ RowTypePtr getJoinOutputType(
 
 bool SplitInfo::canUseCudfConnector() {
   #ifdef GLUTEN_ENABLE_GPU
+  LOG(INFO) << "partitionColumns.empty(): " << partitionColumns.empty()
+          << ", format == PARQUET: " << (format == dwio::common::FileFormat::PARQUET)
+          << ", FLAGS_velox_cudf_table_scan: " << FLAGS_velox_cudf_table_scan
+          << " → Use cuDF Table Scan: "
+          << (partitionColumns.empty() && format == dwio::common::FileFormat::PARQUET && FLAGS_velox_cudf_table_scan);
+
   return partitionColumns.empty() && format == dwio::common::FileFormat::PARQUET && FLAGS_velox_cudf_table_scan;
   #else
   return false;
