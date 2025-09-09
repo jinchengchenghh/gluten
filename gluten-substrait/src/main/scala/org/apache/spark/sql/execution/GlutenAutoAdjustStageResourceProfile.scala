@@ -28,7 +28,6 @@ import org.apache.spark.resource.{ExecutorResourceRequest, ResourceProfile, Reso
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{GlutenAutoAdjustStageResourceProfile => GlutenResourceProfile}
-import org.apache.spark.sql.execution.GlutenAutoAdjustStageResourceProfile.log
 import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.command.{DataWritingCommandExec, ExecutedCommandExec}
 import org.apache.spark.sql.execution.exchange.Exchange
