@@ -32,16 +32,15 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
     }
     plan.transformUp {
       case transformer: WholeStageTransformer =>
-        if (
-          VeloxCudfPlanValidatorJniWrapper.validate(
-            transformer.substraitPlan.toProtobuf.toByteArray)
-        ) {
-          transformer.foreach {
-            case _: LeafTransformSupport =>
-            case t: TransformSupport =>
-              t.setTagValue(CudfTag.CudfTag, true)
-            case _ =>
-          }
+        var hasLeaf = false
+        transformer.foreach {
+          case _: LeafTransformSupport => hasLeaf = true
+          case t: TransformSupport =>
+            t.setTagValue(CudfTag.CudfTag, true)
+          case _ =>
+        }
+        if (hasLeaf) {
+          transformer.setTagValue(CudfTag.CudfTag, false)
         }
         transformer
     }
