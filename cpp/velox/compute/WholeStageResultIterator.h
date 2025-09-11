@@ -47,9 +47,11 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
       // calling .wait() may take no effect in single thread execution mode
       task_->requestCancel().wait();
     }
+    #ifdef GLUTEN_ENABLE_GPU
     if (enableCudf_ && lock_.owns_lock()) {
       lock_.unlock();
     }
+    #endif
   }
 
   std::shared_ptr<ColumnarBatch> next() override;
@@ -126,6 +128,7 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
   // Mutex for thread safety.
   static std::mutex mutex_;
   std::unique_lock<std::mutex> lock_;
+  bool enableCudf_;
 #endif
 
   /// All the children plan node ids with postorder traversal.
