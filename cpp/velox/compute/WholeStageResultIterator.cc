@@ -72,7 +72,7 @@ WholeStageResultIterator::WholeStageResultIterator(
       taskInfo_(taskInfo),
       veloxPlan_(planNode),
 #ifdef GLUTEN_ENABLE_GPU
-      lock_(mutex_),
+      lock_(mutex_, std::defer_lock),
 #endif
       scanNodeIds_(scanNodeIds),
       scanInfos_(scanInfos),
@@ -83,6 +83,14 @@ WholeStageResultIterator::WholeStageResultIterator(
     spillExecutor_ = std::make_shared<folly::CPUThreadPoolExecutor>(spillThreadNum);
   }
   getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
+
+#ifdef GLUTEN_ENABLE_GPU
+  enableCudf_ = veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault);
+  if (enableCudf_) {
+    lock_.lock();
+  }
+#endif
+
 
   // Create task instance.
   std::unordered_set<velox::core::PlanNodeId> emptySet;
@@ -203,7 +211,7 @@ std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQ
 std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
   auto result = nextInternal();
 #ifdef GLUTEN_ENABLE_GPU
-  if (result == nullptr) {
+  if (result == nullptr && enableCudf_) {
     lock_.unlock();
   }
 #endif

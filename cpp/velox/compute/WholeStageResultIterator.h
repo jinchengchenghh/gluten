@@ -47,7 +47,7 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
       // calling .wait() may take no effect in single thread execution mode
       task_->requestCancel().wait();
     }
-    if (lock_.owns_lock()) {
+    if (enableCudf_ && lock_.owns_lock()) {
       lock_.unlock();
     }
   }
