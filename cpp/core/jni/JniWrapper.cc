@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <filesystem>
+#include <iostream>
 
 #include "compute/Runtime.h"
 #include "config/GlutenConfig.h"
@@ -455,6 +456,7 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
   auto conf = ctx->getConfMap();
 #ifdef GLUTEN_ENABLE_GPU
   conf[kCudfEnabled] = std::to_string(enableCudf);
+  std::cout << "cpp enable cudf status " << enableCudf;
 #endif
 
   ctx->setSparkTaskInfo({stageId, partitionId, taskId});
