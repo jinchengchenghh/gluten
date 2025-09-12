@@ -131,6 +131,8 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def enableColumnarCudf: Boolean = getConf(COLUMNAR_CUDF_ENABLED)
 
+  def enableCudfDebug: Boolean = getConf(DEBUG_CUDF)
+
   def enableExtendedColumnPruning: Boolean =
     getConf(ENABLE_EXTENDED_COLUMN_PRUNING)
 

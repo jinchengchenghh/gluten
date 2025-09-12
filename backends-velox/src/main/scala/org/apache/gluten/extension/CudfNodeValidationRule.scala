@@ -35,7 +35,9 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
           case _: LeafTransformSupport => true
           case _ => false
         }
-        log.info(s"cudf enable ${!hasLeaf} for ${transformer.toString()}")
+        if (glutenConf.enableCudfDebug) {
+          log.info(s"cudf enable ${!hasLeaf} for ${transformer.toString()}")
+        }
         transformer.setTagValue(CudfTag.CudfTag, !hasLeaf)
         transformer
     }
