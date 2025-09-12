@@ -378,7 +378,7 @@ void WholeStageResultIterator::collectMetrics() {
         << "; numTableSplits: " << taskStats.numRunningTableScanSplits
         << "; numTotalSplits: " << taskStats.numTotalSplits;
     // oss << "\n" << planWithStats << std::endl;
-    LOG(INFO) << oss.str();
+    LOG(WARNING) << oss.str();
   }
 
   auto planStats = velox::exec::toPlanStats(taskStats);
