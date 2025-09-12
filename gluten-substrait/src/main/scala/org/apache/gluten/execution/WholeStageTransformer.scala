@@ -257,7 +257,6 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames)
     }
 
-    print(s"WholeStageTransformContext isCudf $isCudf \n")
     WholeStageTransformContext(planNode, substraitContext, isCudf)
   }
 
