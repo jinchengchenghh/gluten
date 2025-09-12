@@ -456,6 +456,8 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
 #ifdef GLUTEN_ENABLE_GPU
   if (enableCudf) {
     conf[kCudfEnabled] = "true";
+  } else {
+    conf[kCudfEnabled] = "false";
   }
 #endif
 
