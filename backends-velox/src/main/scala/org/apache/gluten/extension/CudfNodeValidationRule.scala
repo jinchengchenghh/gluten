@@ -38,7 +38,9 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
             t.setTagValue(CudfTag.CudfTag, true)
           case _ =>
         }
+        print(s"get whole stage transformer \n")
         if (hasLeaf) {
+          print(s"set this transformer to false \n")
           transformer.setTagValue(CudfTag.CudfTag, false)
         }
         transformer
