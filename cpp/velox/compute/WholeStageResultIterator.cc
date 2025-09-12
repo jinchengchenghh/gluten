@@ -91,7 +91,6 @@ WholeStageResultIterator::WholeStageResultIterator(
   }
 #endif
 
-
   // Create task instance.
   std::unordered_set<velox::core::PlanNodeId> emptySet;
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
@@ -614,10 +613,8 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         std::to_string(veloxCfg_->get<bool>(kSparkJsonIgnoreNullFields, true));
 
 #ifdef GLUTEN_ENABLE_GPU
-    if (veloxCfg_->get<bool>(kCudfEnabled, false)) {
-      // TODO: wait for PR https://github.com/facebookincubator/velox/pull/13341
-      // configs[cudf_velox::kCudfEnabled] = "false";
-    }
+    // TODO: wait for PR https://github.com/facebookincubator/velox/pull/13341
+    configs[cudf_velox::kCudfEnabled] = std::to_string(veloxCfg_->get<bool>(kCudfEnabled, false));
 #endif
 
     const auto setIfExists = [&](const std::string& glutenKey, const std::string& veloxKey) {
