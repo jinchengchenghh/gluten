@@ -374,7 +374,10 @@ void WholeStageResultIterator::collectMetrics() {
     auto planWithStats = velox::exec::printPlanWithStats(*veloxPlan_.get(), taskStats, true);
     std::ostringstream oss;
     oss << "Native Plan with stats for: " << taskInfo_;
-    oss << "\n" << planWithStats << std::endl;
+    oss << "TaskStats: totalTime: " << taskStats.executionEndTimeMs - taskStats.executionStartTimeMs
+        << "; numTableSplits: " << taskStats.numRunningTableScanSplits
+        << "; numTotalSplits: " << taskStats.numTotalSplits;
+    // oss << "\n" << planWithStats << std::endl;
     LOG(INFO) << oss.str();
   }
 
