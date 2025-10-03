@@ -39,7 +39,7 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
           log.info(s"cudf enable ${!hasLeaf} for ${transformer.toString()}")
         }
         transformer.setTagValue(CudfTag.CudfTag, !hasLeaf)
-        transformer.children.foreach(p => p.setTagValue(CudfTag.CudfTag, !hasLeaf))
+        transformer.foreach(p => p.setTagValue(CudfTag.CudfTag, !hasLeaf))
         transformer
     }
   }
