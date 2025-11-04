@@ -809,7 +809,7 @@ VeloxShuffleReaderDeserializerFactory::VeloxShuffleReaderDeserializerFactory(
 }
 
 std::unique_ptr<ColumnarBatchIterator> VeloxShuffleReaderDeserializerFactory::createDeserializer(
-    const std::shared_ptr<StreamReader>& streamReader) {    
+    const std::shared_ptr<StreamReader>& streamReader) {
   switch (shuffleWriterType_) {
     case ShuffleWriterType::kGpuHashShuffle:
 #ifdef GLUTEN_ENABLE_GPU
@@ -819,11 +819,8 @@ std::unique_ptr<ColumnarBatchIterator> VeloxShuffleReaderDeserializerFactory::cr
           schema_,
           codec_,
           rowType_,
-          batchSize_,
           readerBufferSize_,
           memoryManager_,
-          &isValidityBuffer_,
-          hasComplexType_,
           deserializeTime_,
           decompressTime_);
 #endif

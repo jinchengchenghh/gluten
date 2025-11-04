@@ -15,8 +15,6 @@
  * limitations under the License.
  */
 
-#pragma once
-
 #include "RowVectorStream.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "velox/exec/Driver.h"
@@ -47,46 +45,46 @@ class SuspendedSection {
 } // namespace
 
 namespace gluten {
-  bool RowVectorStream::hasNext() {
-    if (finished_) {
-      return false;
-    }
-    VELOX_DCHECK_NOT_NULL(iterator_);
-
-    bool hasNext;
-    {
-      // We are leaving Velox task execution and are probably entering Spark code through JNI. Suspend the current
-      // driver to make the current task open to spilling.
-      //
-      // When a task is getting spilled, it should have been suspended so has zero running threads, otherwise there's
-      // possibility that this spill call hangs. See https://github.com/apache/incubator-gluten/issues/7243.
-      // As of now, non-zero running threads usually happens when:
-      // 1. Task A spills task B;
-      // 2. Task A tries to grow buffers created by task B, during which spill is requested on task A again.
-      SuspendedSection ss(driverCtx_->driver);
-      hasNext = iterator_->hasNext();
-    }
-    if (!hasNext) {
-      finished_ = true;
-    }
-    return hasNext;
+bool RowVectorStream::hasNext() {
+  if (finished_) {
+    return false;
   }
+  VELOX_DCHECK_NOT_NULL(iterator_);
 
-facebook::velox::RowVectorPtr next() {
-    if (finished_) {
-      return nullptr;
-    }
-    std::shared_ptr<ColumnarBatch> cb;
-    {
-      // We are leaving Velox task execution and are probably entering Spark code through JNI. Suspend the current
-      // driver to make the current task open to spilling.
-      SuspendedSection ss(driverCtx_->driver);
-      cb = iterator_->next();
-    }
-    const std::shared_ptr<VeloxColumnarBatch>& vb = VeloxColumnarBatch::from(pool_, cb);
-    auto vp = vb->getRowVector();
-    VELOX_DCHECK(vp != nullptr);
-    return std::make_shared<facebook::velox::RowVector>(
-        vp->pool(), outputType_, facebook::velox::BufferPtr(0), vp->size(), vp->children());
+  bool hasNext;
+  {
+    // We are leaving Velox task execution and are probably entering Spark code through JNI. Suspend the current
+    // driver to make the current task open to spilling.
+    //
+    // When a task is getting spilled, it should have been suspended so has zero running threads, otherwise there's
+    // possibility that this spill call hangs. See https://github.com/apache/incubator-gluten/issues/7243.
+    // As of now, non-zero running threads usually happens when:
+    // 1. Task A spills task B;
+    // 2. Task A tries to grow buffers created by task B, during which spill is requested on task A again.
+    SuspendedSection ss(driverCtx_->driver);
+    hasNext = iterator_->hasNext();
   }
+  if (!hasNext) {
+    finished_ = true;
+  }
+  return hasNext;
 }
+
+facebook::velox::RowVectorPtr RowVectorStream::next() {
+  if (finished_) {
+    return nullptr;
+  }
+  std::shared_ptr<ColumnarBatch> cb;
+  {
+    // We are leaving Velox task execution and are probably entering Spark code through JNI. Suspend the current
+    // driver to make the current task open to spilling.
+    SuspendedSection ss(driverCtx_->driver);
+    cb = iterator_->next();
+  }
+  const std::shared_ptr<VeloxColumnarBatch>& vb = VeloxColumnarBatch::from(pool_, cb);
+  auto vp = vb->getRowVector();
+  VELOX_DCHECK(vp != nullptr);
+  return std::make_shared<facebook::velox::RowVector>(
+      vp->pool(), outputType_, facebook::velox::BufferPtr(0), vp->size(), vp->children());
+}
+} // namespace gluten

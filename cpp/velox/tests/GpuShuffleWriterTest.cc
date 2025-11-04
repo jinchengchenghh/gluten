@@ -28,9 +28,9 @@
 #include "tests/utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"
 
-#include "velox/vector/tests/utils/VectorTestBase.h"
 #include "velox/experimental/cudf/exec/VeloxCudfInterop.h"
 #include "velox/experimental/cudf/vector/CudfVector.h"
+#include "velox/vector/tests/utils/VectorTestBase.h"
 
 using namespace facebook::velox;
 
@@ -108,7 +108,7 @@ std::vector<GpuShuffleTestParams> getTestParams() {
     for (const auto compressionThreshold : compressionThresholds) {
       // Local.
       for (const auto mergeBufferSize : mergeBufferSizes) {
-          params.push_back(
+        params.push_back(
             GpuShuffleTestParams{
                 .shuffleWriterType = ShuffleWriterType::kGpuHashShuffle,
                 .partitionWriterType = PartitionWriterType::kLocal,
@@ -173,7 +173,8 @@ class GpuVeloxShuffleWriterTestEnvironment : public ::testing::Environment {
   }
 };
 
-class GpuVeloxShuffleWriterTest : public ::testing::TestWithParam<GpuShuffleTestParams>, public VeloxShuffleWriterTestBase {
+class GpuVeloxShuffleWriterTest : public ::testing::TestWithParam<GpuShuffleTestParams>,
+                                  public VeloxShuffleWriterTestBase {
  protected:
   static std::shared_ptr<ShuffleWriterOptions> createShuffleWriterOptions(
       Partitioning partitioning,
@@ -253,188 +254,172 @@ class GpuVeloxShuffleWriterTest : public ::testing::TestWithParam<GpuShuffleTest
     GLUTEN_ASSIGN_OR_THROW(file_, arrow::io::ReadableFile::Open(fileName))
   }
 
-void getRowVectors(
-    arrow::Compression::type compressionType,
-    const RowTypePtr& rowType,
-    std::vector<facebook::velox::RowVectorPtr>& vectors,
-    std::shared_ptr<arrow::io::InputStream> in) {
+  void getRowVectors(
+      arrow::Compression::type compressionType,
+      const RowTypePtr& rowType,
+      std::vector<facebook::velox::RowVectorPtr>& vectors,
+      std::shared_ptr<arrow::io::InputStream> in) {
+    // --- Debug: Start ---
+    std::cout << "[DEBUG] Enter getRowVectors()" << std::endl;
+    std::cout << "[DEBUG] Compression type: " << static_cast<int>(compressionType) << std::endl;
+    std::cout << "[DEBUG] Row type: " << rowType->toString() << std::endl;
+    // --- Debug: End ---
 
-  // --- Debug: Start ---
-  std::cout << "[DEBUG] Enter getRowVectors()" << std::endl;
-  std::cout << "[DEBUG] Compression type: " << static_cast<int>(compressionType) << std::endl;
-  std::cout << "[DEBUG] Row type: " << rowType->toString() << std::endl;
-  // --- Debug: End ---
+    const auto veloxCompressionType = arrowCompressionTypeToVelox(compressionType);
+    const auto schema = toArrowSchema(rowType, getDefaultMemoryManager()->getLeafMemoryPool().get());
+    auto codec = createCompressionCodec(compressionType, CodecBackend::NONE);
 
-  const auto veloxCompressionType = arrowCompressionTypeToVelox(compressionType);
-  const auto schema = toArrowSchema(rowType, getDefaultMemoryManager()->getLeafMemoryPool().get());
-  auto codec = createCompressionCodec(compressionType, CodecBackend::NONE);
+    auto deserializerFactory = std::make_unique<gluten::VeloxShuffleReaderDeserializerFactory>(
+        schema,
+        std::move(codec),
+        veloxCompressionType,
+        rowType,
+        kDefaultBatchSize,
+        kDefaultReadBufferSize,
+        GetParam().deserializerBufferSize,
+        getDefaultMemoryManager(),
+        GetParam().shuffleWriterType);
 
-  auto deserializerFactory = std::make_unique<gluten::VeloxShuffleReaderDeserializerFactory>(
-      schema,
-      std::move(codec),
-      veloxCompressionType,
-      rowType,
-      kDefaultBatchSize,
-      kDefaultReadBufferSize,
-      GetParam().deserializerBufferSize,
-      getDefaultMemoryManager(),
-      GetParam().shuffleWriterType,
-      true);
+    const auto reader = std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
+    const auto iter = reader->read(std::make_shared<TestStreamReader>(std::move(in)));
 
-  const auto reader = std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
-  const auto iter = reader->read(std::make_shared<TestStreamReader>(std::move(in)));
+    int batchIndex = 0;
+    while (iter->hasNext()) {
+      std::cout << "[DEBUG] Reading batch " << batchIndex << "..." << std::endl;
 
-  int batchIndex = 0;
-  while (iter->hasNext()) {
-    std::cout << "[DEBUG] Reading batch " << batchIndex << "..." << std::endl;
+      auto rowVector = std::dynamic_pointer_cast<VeloxColumnarBatch>(iter->next())->getRowVector();
 
-    auto rowVector =
-        std::dynamic_pointer_cast<VeloxColumnarBatch>(iter->next())->getRowVector();
-
-    if (!rowVector) {
-      std::cerr << "[DEBUG] Null RowVector for batch " << batchIndex << std::endl;
-      continue;
-    }
-
-    std::cout << "[DEBUG] Velox RowVector type: " << rowVector->type()->toString()
-              << ", size: " << rowVector->size() << std::endl;
-
-    // Cast to CudfVector
-    auto vector = std::dynamic_pointer_cast<cudf_velox::CudfVector>(rowVector);
-    if (!vector) {
-      std::cerr << "[DEBUG] Batch " << batchIndex << " is not a CudfVector!" << std::endl;
-    }
-    VELOX_CHECK(vector);
-
-    auto tableView = vector->getTableView();
-    std::cout << "[DEBUG] cudf::table_view columns: " << tableView.num_columns()
-              << ", rows: " << tableView.num_rows() << std::endl;
-
-    // Convert back to Velox
-    auto veloxVector = cudf_velox::with_arrow::toVeloxColumn(
-        tableView,
-        getDefaultMemoryManager()->getLeafMemoryPool().get(),
-        "",
-        vector->stream());
-
-    if (!veloxVector) {
-      std::cerr << "[DEBUG] cudf_velox::with_arrow::toVeloxColumn returned null for batch "
-                << batchIndex << std::endl;
-      continue;
-    }
-
-    std::cout << "[DEBUG] Converted Velox vector type: " << veloxVector->type()->toString()
-              << ", size: " << veloxVector->size() << std::endl;
-
-    vectors.emplace_back(veloxVector);
-    ++batchIndex;
-  }
-
-  std::cout << "[DEBUG] Finished reading " << vectors.size() << " batches." << std::endl;
-}
-
-
-void shuffleWriteReadMultiBlocks(
-    VeloxShuffleWriter& shuffleWriter,
-    int32_t expectPartitionLength,
-    const std::vector<std::vector<RowVectorPtr>>& expectedVectors) {
-  
-  std::cout << "[DEBUG] >>> Enter shuffleWriteReadMultiBlocks()" << std::endl;
-  std::cout << "[DEBUG] Expected partition length: " << expectPartitionLength << std::endl;
-
-  // Stop the writer and verify successful completion
-  auto stopStatus = shuffleWriter.stop();
-  if (!stopStatus.ok()) {
-    std::cerr << "[DEBUG] shuffleWriter.stop() failed: " << stopStatus.ToString() << std::endl;
-  } else {
-    std::cout << "[DEBUG] shuffleWriter.stop() completed successfully" << std::endl;
-  }
-
-  // Verify file existence
-  checkFileExists(dataFile_);
-  std::cout << "[DEBUG] Output file exists: " << dataFile_ << std::endl;
-
-  // Retrieve partition lengths
-  const auto& lengths = shuffleWriter.partitionLengths();
-  std::cout << "[DEBUG] Partition lengths count: " << lengths.size() << std::endl;
-  for (size_t i = 0; i < lengths.size(); ++i) {
-    std::cout << "    [DEBUG] Partition[" << i << "] length: " << lengths[i] << std::endl;
-  }
-
-  ASSERT_EQ(lengths.size(), expectPartitionLength);
-
-  // Compute total size and verify file size
-  int64_t lengthSum = std::accumulate(lengths.begin(), lengths.end(), 0L);
-  std::cout << "[DEBUG] Total partition length sum: " << lengthSum << std::endl;
-
-  setReadableFile(dataFile_);
-  int64_t fileSize = *file_->GetSize();
-  std::cout << "[DEBUG] Actual file size: " << fileSize << std::endl;
-  ASSERT_EQ(fileSize, lengthSum);
-
-  int64_t offset = 0;
-  for (int32_t i = 0; i < expectPartitionLength; i++) {
-    std::cout << "[DEBUG] --- Reading partition " << i << " ---" << std::endl;
-    std::cout << "[DEBUG]   Expected vectors: " << expectedVectors[i].size()
-              << ", length: " << lengths[i] << ", offset: " << offset << std::endl;
-
-    if (expectedVectors[i].empty()) {
-      if (lengths[i] != 0) {
-        std::cerr << "[DEBUG] Partition " << i << " expected empty but has nonzero length "
-                  << lengths[i] << std::endl;
+      if (!rowVector) {
+        std::cerr << "[DEBUG] Null RowVector for batch " << batchIndex << std::endl;
+        continue;
       }
-      ASSERT_EQ(lengths[i], 0);
+
+      std::cout << "[DEBUG] Velox RowVector type: " << rowVector->type()->toString() << ", size: " << rowVector->size()
+                << std::endl;
+
+      // Cast to CudfVector
+      auto vector = std::dynamic_pointer_cast<cudf_velox::CudfVector>(rowVector);
+      if (!vector) {
+        std::cerr << "[DEBUG] Batch " << batchIndex << " is not a CudfVector!" << std::endl;
+      }
+      VELOX_CHECK(vector);
+
+      auto tableView = vector->getTableView();
+      std::cout << "[DEBUG] cudf::table_view columns: " << tableView.num_columns() << ", rows: " << tableView.num_rows()
+                << std::endl;
+
+      // Convert back to Velox
+      auto veloxVector = cudf_velox::with_arrow::toVeloxColumn(
+          tableView, getDefaultMemoryManager()->getLeafMemoryPool().get(), "", vector->stream());
+
+      if (!veloxVector) {
+        std::cerr << "[DEBUG] cudf_velox::with_arrow::toVeloxColumn returned null for batch " << batchIndex
+                  << std::endl;
+        continue;
+      }
+
+      std::cout << "[DEBUG] Converted Velox vector type: " << veloxVector->type()->toString()
+                << ", size: " << veloxVector->size() << std::endl;
+
+      vectors.emplace_back(veloxVector);
+      ++batchIndex;
+    }
+
+    std::cout << "[DEBUG] Finished reading " << vectors.size() << " batches." << std::endl;
+  }
+
+  void shuffleWriteReadMultiBlocks(
+      VeloxShuffleWriter& shuffleWriter,
+      int32_t expectPartitionLength,
+      const std::vector<std::vector<RowVectorPtr>>& expectedVectors) {
+    std::cout << "[DEBUG] >>> Enter shuffleWriteReadMultiBlocks()" << std::endl;
+    std::cout << "[DEBUG] Expected partition length: " << expectPartitionLength << std::endl;
+
+    // Stop the writer and verify successful completion
+    auto stopStatus = shuffleWriter.stop();
+    if (!stopStatus.ok()) {
+      std::cerr << "[DEBUG] shuffleWriter.stop() failed: " << stopStatus.ToString() << std::endl;
     } else {
-      std::vector<RowVectorPtr> deserializedVectors;
+      std::cout << "[DEBUG] shuffleWriter.stop() completed successfully" << std::endl;
+    }
 
-      // Compute byte range for this partition
-      int64_t start = offset;
-      int64_t size = lengths[i];
-      offset += size;
+    // Verify file existence
+    checkFileExists(dataFile_);
+    std::cout << "[DEBUG] Output file exists: " << dataFile_ << std::endl;
 
-      GLUTEN_ASSIGN_OR_THROW(
-          auto in,
-          arrow::io::RandomAccessFile::GetStream(file_, start, size)
-      );
+    // Retrieve partition lengths
+    const auto& lengths = shuffleWriter.partitionLengths();
+    std::cout << "[DEBUG] Partition lengths count: " << lengths.size() << std::endl;
+    for (size_t i = 0; i < lengths.size(); ++i) {
+      std::cout << "    [DEBUG] Partition[" << i << "] length: " << lengths[i] << std::endl;
+    }
 
-      std::cout << "[DEBUG] Deserializing partition " << i
-                << " from byte range [" << start << ", " << (start + size) << ")" << std::endl;
+    ASSERT_EQ(lengths.size(), expectPartitionLength);
 
-      getRowVectors(
-          GetParam().compressionType,
-          asRowType(expectedVectors[i][0]->type()),
-          deserializedVectors,
-          in);
+    // Compute total size and verify file size
+    int64_t lengthSum = std::accumulate(lengths.begin(), lengths.end(), 0L);
+    std::cout << "[DEBUG] Total partition length sum: " << lengthSum << std::endl;
 
-      std::cout << "[DEBUG]   Expected deserializedVectors: " << deserializedVectors.size() << std::endl;
+    setReadableFile(dataFile_);
+    int64_t fileSize = *file_->GetSize();
+    std::cout << "[DEBUG] Actual file size: " << fileSize << std::endl;
+    ASSERT_EQ(fileSize, lengthSum);
 
-      auto expectedVector = mergeRowVectors(expectedVectors[i]);
-      auto deserializedVector = mergeRowVectors(deserializedVectors);
+    int64_t offset = 0;
+    for (int32_t i = 0; i < expectPartitionLength; i++) {
+      std::cout << "[DEBUG] --- Reading partition " << i << " ---" << std::endl;
+      std::cout << "[DEBUG]   Expected vectors: " << expectedVectors[i].size() << ", length: " << lengths[i]
+                << ", offset: " << offset << std::endl;
 
-      std::cout << "[DEBUG]   Expected row count: " << expectedVector->size()
-                << ", Deserialized row count: " << deserializedVector->size() << std::endl;
-
-      try {
-        std::cout << "[DEBUG]   Expected row vector: " << expectedVector->toString(0, 100)
-                << ", Deserialized row vector: " << deserializedVector->toString(0, 100) << std::endl;
-
-        for (auto i = 0; i < expectedVector->childrenSize(); ++i) {
-          std::cout << "[DEBUG]   child  Expected row vector: " << expectedVector->childAt(i)->toString(0, 100)
-                << ", Deserialized row vector: " << deserializedVector->childAt(i)->toString(0, 100) << std::endl;
+      if (expectedVectors[i].empty()) {
+        if (lengths[i] != 0) {
+          std::cerr << "[DEBUG] Partition " << i << " expected empty but has nonzero length " << lengths[i]
+                    << std::endl;
         }
+        ASSERT_EQ(lengths[i], 0);
+      } else {
+        std::vector<RowVectorPtr> deserializedVectors;
 
-        facebook::velox::test::assertEqualVectors(expectedVector, deserializedVector);
-        std::cout << "[DEBUG] ✅ Partition " << i << " vectors match" << std::endl;
-      } catch (const std::exception& e) {
-        std::cerr << "[DEBUG] ❌ Partition " << i << " mismatch: " << e.what() << std::endl;
-        throw;
+        // Compute byte range for this partition
+        int64_t start = offset;
+        int64_t size = lengths[i];
+        offset += size;
+
+        GLUTEN_ASSIGN_OR_THROW(auto in, arrow::io::RandomAccessFile::GetStream(file_, start, size));
+
+        std::cout << "[DEBUG] Deserializing partition " << i << " from byte range [" << start << ", " << (start + size)
+                  << ")" << std::endl;
+
+        getRowVectors(GetParam().compressionType, asRowType(expectedVectors[i][0]->type()), deserializedVectors, in);
+
+        std::cout << "[DEBUG]   Expected deserializedVectors: " << deserializedVectors.size() << std::endl;
+
+        auto expectedVector = mergeRowVectors(expectedVectors[i]);
+        auto deserializedVector = mergeRowVectors(deserializedVectors);
+
+        std::cout << "[DEBUG]   Expected row count: " << expectedVector->size()
+                  << ", Deserialized row count: " << deserializedVector->size() << std::endl;
+
+        try {
+          std::cout << "[DEBUG]   Expected row vector: " << expectedVector->toString(0, 100)
+                    << ", Deserialized row vector: " << deserializedVector->toString(0, 100) << std::endl;
+
+          for (auto i = 0; i < expectedVector->childrenSize(); ++i) {
+            std::cout << "[DEBUG]   child  Expected row vector: " << expectedVector->childAt(i)->toString(0, 100)
+                      << ", Deserialized row vector: " << deserializedVector->childAt(i)->toString(0, 100) << std::endl;
+          }
+
+          facebook::velox::test::assertEqualVectors(expectedVector, deserializedVector);
+          std::cout << "[DEBUG] ✅ Partition " << i << " vectors match" << std::endl;
+        } catch (const std::exception& e) {
+          std::cerr << "[DEBUG] ❌ Partition " << i << " mismatch: " << e.what() << std::endl;
+          throw;
+        }
       }
     }
+
+    std::cout << "[DEBUG] <<< Finished shuffleWriteReadMultiBlocks()" << std::endl;
   }
-
-  std::cout << "[DEBUG] <<< Finished shuffleWriteReadMultiBlocks()" << std::endl;
-}
-
 
   void testShuffleRoundTrip(
       VeloxShuffleWriter& shuffleWriter,

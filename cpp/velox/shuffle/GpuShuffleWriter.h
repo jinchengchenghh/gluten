@@ -32,7 +32,7 @@ class GpuHashShuffleWriter : public VeloxHashShuffleWriter {
   GpuHashShuffleWriter(
       uint32_t numPartitions,
       const std::shared_ptr<PartitionWriter>& partitionWriter,
-      const std::shared_ptr<HashShuffleWriterOptions>& options,
+      const std::shared_ptr<GpuHashShuffleWriterOptions>& options,
       MemoryManager* memoryManager)
       : VeloxHashShuffleWriter(numPartitions, partitionWriter, options, memoryManager) {}
 
