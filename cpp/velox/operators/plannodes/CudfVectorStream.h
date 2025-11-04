@@ -97,7 +97,7 @@ class CudfValueStream : public facebook::velox::exec::SourceOperator
   CudfValueStream(
       int32_t operatorId,
       facebook::velox::exec::DriverCtx* driverCtx,
-      std::shared_ptr<const ValueStreamNode> valueStreamNode)
+      std::shared_ptr<const CudfValueStreamNode> valueStreamNode)
       : facebook::velox::exec::SourceOperator(
             driverCtx,
             valueStreamNode->outputType(),
