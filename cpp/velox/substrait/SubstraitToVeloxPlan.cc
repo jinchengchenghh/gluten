@@ -1296,15 +1296,16 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   // Check if the ReadRel specifies an input of stream. If yes, build ValueStreamNode as the data source.
   auto streamIdx = getStreamIndex(readRel);
   if (streamIdx >= 0) {
+#ifdef GLUTEN_ENABLE_GPU
+    if (veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
+      return constructValueStreamNode<CudfValueStreamNode>(readRel, streamIdx);
+    }
+#endif
     // Only used in benchmark enable query trace, replace ValueStreamNode to ValuesNode to support serialization.
     if (!veloxCfg_->get<bool>(kQueryTraceEnabled, false)) {
       return constructValueStreamNode<ValueStreamNode>(readRel, streamIdx);
     }
-#ifdef GLUTEN_ENABLE_GPU
-    else if (veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
-      constructValueStreamNode<CudfValueStreamNode>(readRel, streamIdx);
-    }
-#endif
+
     else {
       return constructValuesNode(readRel, streamIdx);
     }

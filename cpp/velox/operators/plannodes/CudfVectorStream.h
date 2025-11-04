@@ -45,10 +45,11 @@ class CudfVectorStream : public RowVectorStream {
     auto cudfVector = std::dynamic_pointer_cast<facebook::velox::cudf_velox::CudfVector>(vp);
     VELOX_CHECK_NOT_NULL(cudfVector);
     return std::make_shared<facebook::velox::cudf_velox::CudfVector>(
-        vp->pool(), outputType_, vp->size(), cudfVector->release(), vp->stream());
+        vp->pool(), outputType_, vp->size(), cudfVector->release(), cudfVector->stream());
   }
 };
 
+// To avoid plan translator uses false node, this one cannot inherit ValueStreamNode.
 class CudfValueStreamNode final : public facebook::velox::core::PlanNode {
  public:
   CudfValueStreamNode(
@@ -78,18 +79,18 @@ class CudfValueStreamNode final : public facebook::velox::core::PlanNode {
   }
 
  private:
-  void addDetails(std::stringstream& stream) const override{};
+  void addDetails(std::stringstream& stream) const override {};
 
   const facebook::velox::RowTypePtr outputType_;
   std::shared_ptr<ResultIterator> iterator_;
   const std::vector<facebook::velox::core::PlanNodePtr> kEmptySources_;
 };
 
-class CudfValueStream : public ValueStream
+class CudfValueStream : public facebook::velox::exec::SourceOperator
 // Extends NvtxHelper to identify it as GPU node, so not add CudfFormVelox operator.
 #ifdef GLUTEN_ENABLE_GPU
     ,
-                    public facebook::velox::cudf_velox::NvtxHelper
+                        public facebook::velox::cudf_velox::NvtxHelper
 #endif
 {
  public:
@@ -97,7 +98,12 @@ class CudfValueStream : public ValueStream
       int32_t operatorId,
       facebook::velox::exec::DriverCtx* driverCtx,
       std::shared_ptr<const ValueStreamNode> valueStreamNode)
-      : ValueStream(operatorId, driverCtx, valueStreamNode)
+      : facebook::velox::exec::SourceOperator(
+            driverCtx,
+            valueStreamNode->outputType(),
+            operatorId,
+            valueStreamNode->id(),
+            valueStreamNode->name().data())
 #ifdef GLUTEN_ENABLE_GPU
         ,
         facebook::velox::cudf_velox::NvtxHelper(
@@ -109,6 +115,30 @@ class CudfValueStream : public ValueStream
     ResultIterator* itr = valueStreamNode->iterator();
     rvStream_ = std::make_unique<CudfVectorStream>(driverCtx, pool(), itr, outputType_);
   }
+
+  facebook::velox::RowVectorPtr getOutput() override {
+    if (finished_) {
+      return nullptr;
+    }
+    if (rvStream_->hasNext()) {
+      return rvStream_->next();
+    } else {
+      finished_ = true;
+      return nullptr;
+    }
+  }
+
+  facebook::velox::exec::BlockingReason isBlocked(facebook::velox::ContinueFuture* /* unused */) override {
+    return facebook::velox::exec::BlockingReason::kNotBlocked;
+  }
+
+  bool isFinished() override {
+    return finished_;
+  }
+
+ private:
+  bool finished_ = false;
+  std::unique_ptr<RowVectorStream> rvStream_;
 };
 
 class CudfVectorStreamOperatorTranslator : public facebook::velox::exec::Operator::PlanNodeTranslator {
