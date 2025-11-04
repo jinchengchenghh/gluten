@@ -44,7 +44,7 @@ class ColumnarShuffleWriter[K, V](
   private val dep = handle.dependency.asInstanceOf[ColumnarShuffleDependency[K, V, V]]
 
   dep.shuffleWriterType match {
-    case HashShuffleWriterType | SortShuffleWriterType =>
+    case HashShuffleWriterType | SortShuffleWriterType | GpuHashShuffleWriterType =>
     // Valid shuffle writer types
     case _ =>
       throw new IllegalArgumentException(
