@@ -131,6 +131,22 @@ struct RssSortShuffleWriterOptions : ShuffleWriterOptions {
         compressionType(compressionType) {}
 };
 
+struct GpuHashShuffleWriterOptions : ShuffleWriterOptions {
+  int32_t splitBufferSize = kDefaultShuffleWriterBufferSize;
+  double splitBufferReallocThreshold = kDefaultSplitBufferReallocThreshold;
+
+  GpuHashShuffleWriterOptions() : ShuffleWriterOptions(ShuffleWriterType::kGpuHashShuffle) {}
+
+  GpuHashShuffleWriterOptions(
+      Partitioning partitioning,
+      int32_t startPartitionId,
+      int32_t partitionBufferSize,
+      double partitionBufferReallocThreshold)
+      : ShuffleWriterOptions(ShuffleWriterType::kGpuHashShuffle, partitioning, startPartitionId),
+        splitBufferSize(partitionBufferSize),
+        splitBufferReallocThreshold(partitionBufferReallocThreshold) {}
+};
+
 struct LocalPartitionWriterOptions {
   int64_t shuffleFileBufferSize = kDefaultShuffleFileBufferSize; // spark.shuffle.file.buffer
   int32_t compressionBufferSize =

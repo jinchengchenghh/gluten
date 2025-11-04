@@ -809,10 +809,11 @@ VeloxShuffleReaderDeserializerFactory::VeloxShuffleReaderDeserializerFactory(
 }
 
 std::unique_ptr<ColumnarBatchIterator> VeloxShuffleReaderDeserializerFactory::createDeserializer(
-    const std::shared_ptr<StreamReader>& streamReader) {
+    const std::shared_ptr<StreamReader>& streamReader) {    
   switch (shuffleWriterType_) {
     case ShuffleWriterType::kGpuHashShuffle:
 #ifdef GLUTEN_ENABLE_GPU
+      VELOX_CHECK(!hasComplexType_);
       return std::make_unique<GpuHashShuffleReaderDeserializer>(
           streamReader,
           schema_,
