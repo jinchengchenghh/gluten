@@ -96,7 +96,8 @@ struct HashShuffleWriterOptions : ShuffleWriterOptions {
   HashShuffleWriterOptions(ShuffleWriterType shuffleWriterType) : ShuffleWriterOptions(shuffleWriterType) {}
 
   HashShuffleWriterOptions(
-      ShuffleWriterType shuffleWriterType Partitioning partitioning,
+      ShuffleWriterType shuffleWriterType,
+      Partitioning partitioning,
       int32_t startPartitionId,
       int32_t partitionBufferSize,
       double partitionBufferReallocThreshold)
