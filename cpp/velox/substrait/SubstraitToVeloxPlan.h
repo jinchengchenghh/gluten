@@ -135,6 +135,9 @@ class SubstraitToVeloxPlanConverter {
 
   core::PlanNodePtr constructValueStreamNode(const ::substrait::ReadRel& sRead, int32_t streamIdx);
 
+#ifdef GLUTEN_ENABLE_GPU
+  core::PlanNodePtr constructValueStreamNode(const ::substrait::ReadRel& sRead, int32_t streamIdx);
+#endif
   // This is only used in benchmark and enable query trace, which will load all the data to ValuesNode.
   core::PlanNodePtr constructValuesNode(const ::substrait::ReadRel& sRead, int32_t streamIdx);
 

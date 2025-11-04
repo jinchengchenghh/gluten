@@ -36,10 +36,13 @@ class RowVectorStream {
 
   bool hasNext();
 
-  // Convert arrow batch to row vector and use new output columns
-  facebook::velox::RowVectorPtr next();
+  // Convert arrow batch to row vector, construct the new Rowvector with new outputType.
+  virtual facebook::velox::RowVectorPtr next();
 
- private:
+ protected:
+  // Get the next batch from iterator_.
+  std::shared_ptr<ColumnarBatch> nextInternal();
+
   facebook::velox::exec::DriverCtx* driverCtx_;
   facebook::velox::memory::MemoryPool* pool_;
   const facebook::velox::RowTypePtr outputType_;

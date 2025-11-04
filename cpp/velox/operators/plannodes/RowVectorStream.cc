@@ -70,7 +70,7 @@ bool RowVectorStream::hasNext() {
   return hasNext;
 }
 
-facebook::velox::RowVectorPtr RowVectorStream::next() {
+std::shared_ptr<ColumnarBatch> cb RowVectorStream::nextInternal() {
   if (finished_) {
     return nullptr;
   }
@@ -81,6 +81,11 @@ facebook::velox::RowVectorPtr RowVectorStream::next() {
     SuspendedSection ss(driverCtx_->driver);
     cb = iterator_->next();
   }
+  return cb;
+}
+
+facebook::velox::RowVectorPtr RowVectorStream::next() {
+  auto cb = nextInternal();
   const std::shared_ptr<VeloxColumnarBatch>& vb = VeloxColumnarBatch::from(pool_, cb);
   auto vp = vb->getRowVector();
   VELOX_DCHECK(vp != nullptr);

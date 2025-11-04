@@ -17,103 +17,41 @@
 
 #pragma once
 
-#include "RowVectorStream.h"
+#include "CudfVectorStream.h"
 #include "velox/experimental/cudf/exec/NvtxHelper.h"
 #include "velox/experimental/cudf/vector/CudfVector.h"
 
-namespace {
-
-class SuspendedSection {
- public:
-  explicit SuspendedSection(facebook::velox::exec::Driver* driver) : driver_(driver) {
-    if (driver_->task()->enterSuspended(driver->state()) != facebook::velox::exec::StopReason::kNone) {
-      VELOX_FAIL("Terminate detected when entering suspended section");
-    }
-  }
-
-  virtual ~SuspendedSection() {
-    if (driver_->task()->leaveSuspended(driver_->state()) != facebook::velox::exec::StopReason::kNone) {
-      LOG(WARNING) << "Terminate detected when leaving suspended section for driver " << driver_->driverCtx()->driverId
-                   << " from task " << driver_->task()->taskId();
-    }
-  }
-
- private:
-  facebook::velox::exec::Driver* const driver_;
-};
-
-} // namespace
-
 namespace gluten {
 
-class RowVectorStream {
+class CudfVectorStream {
  public:
-  explicit RowVectorStream(
+  CudfVectorStream(
       facebook::velox::exec::DriverCtx* driverCtx,
       facebook::velox::memory::MemoryPool* pool,
       ResultIterator* iterator,
       const facebook::velox::RowTypePtr& outputType)
-      : driverCtx_(driverCtx), pool_(pool), outputType_(outputType), iterator_(iterator) {}
-
-  bool hasNext() {
-    if (finished_) {
-      return false;
-    }
-    VELOX_DCHECK_NOT_NULL(iterator_);
-
-    bool hasNext;
-    {
-      // We are leaving Velox task execution and are probably entering Spark code through JNI. Suspend the current
-      // driver to make the current task open to spilling.
-      //
-      // When a task is getting spilled, it should have been suspended so has zero running threads, otherwise there's
-      // possibility that this spill call hangs. See https://github.com/apache/incubator-gluten/issues/7243.
-      // As of now, non-zero running threads usually happens when:
-      // 1. Task A spills task B;
-      // 2. Task A tries to grow buffers created by task B, during which spill is requested on task A again.
-      SuspendedSection ss(driverCtx_->driver);
-      hasNext = iterator_->hasNext();
-    }
-    if (!hasNext) {
-      finished_ = true;
-    }
-    return hasNext;
-  }
+      : RowVectorStream(driverCtx, pool, iterator, outputType) {}
 
   // Convert arrow batch to row vector and use new output columns
-  facebook::velox::RowVectorPtr next() {
-    if (finished_) {
+  facebook::velox::RowVectorPtr next() override{
+    auto cb = nextInternal();
+    if (cb == nullptr) {
       return nullptr;
     }
-    std::shared_ptr<ColumnarBatch> cb;
-    {
-      // We are leaving Velox task execution and are probably entering Spark code through JNI. Suspend the current
-      // driver to make the current task open to spilling.
-      SuspendedSection ss(driverCtx_->driver);
-      cb = iterator_->next();
-    }
-    const std::shared_ptr<VeloxColumnarBatch>& vb = VeloxColumnarBatch::from(pool_, cb);
+    auto vb = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
+    VELOX_CHECK_NOT_NULL(vb);
     auto vp = vb->getRowVector();
     VELOX_DCHECK(vp != nullptr);
-  #ifdef GLUTEN_ENABLE_GPU
-    VELOX_CHECK_NOT_NULL(std::dynamic_pointer_cast<facebook::velox::cudf_velox::CudfVector>(vp));
-  #endif
-    return std::make_shared<facebook::velox::RowVector>(
-        vp->pool(), outputType_, facebook::velox::BufferPtr(0), vp->size(), vp->children());
+    auto cudfVector = std::dynamic_pointer_cast<facebook::velox::cudf_velox::CudfVector>(vp);
+    VELOX_CHECK_NOT_NULL(cudfVector);
+    return std::make_shared<facebook::velox::cudf_velox::CudfVector>(
+        vp->pool(), outputType_, vp->size(), cudfVector->release(), vp->stream());
   }
-
- private:
-  facebook::velox::exec::DriverCtx* driverCtx_;
-  facebook::velox::memory::MemoryPool* pool_;
-  const facebook::velox::RowTypePtr outputType_;
-  ResultIterator* iterator_;
-
-  bool finished_{false};
 };
 
-class ValueStreamNode final : public facebook::velox::core::PlanNode {
+class CudfValueStreamNode final : public facebook::velox::core::PlanNode {
  public:
-  ValueStreamNode(
+  CudfValueStreamNode(
       const facebook::velox::core::PlanNodeId& id,
       const facebook::velox::RowTypePtr& outputType,
       std::shared_ptr<ResultIterator> iterator)
@@ -132,22 +70,22 @@ class ValueStreamNode final : public facebook::velox::core::PlanNode {
   }
 
   std::string_view name() const override {
-    return "ValueStream";
+    return "CudfValueStream";
   }
 
   folly::dynamic serialize() const override {
-    VELOX_UNSUPPORTED("ValueStream plan node is not serializable");
+    VELOX_UNSUPPORTED("CudfValueStream plan node is not serializable");
   }
 
  private:
-  void addDetails(std::stringstream& stream) const override {};
+  void addDetails(std::stringstream& stream) const override{};
 
   const facebook::velox::RowTypePtr outputType_;
   std::shared_ptr<ResultIterator> iterator_;
   const std::vector<facebook::velox::core::PlanNodePtr> kEmptySources_;
 };
 
-class ValueStream : public facebook::velox::exec::SourceOperator
+class CudfValueStream : public facebook::velox::exec::SourceOperator
 // Extends NvtxHelper to identify it as GPU node, so not add CudfFormVelox operator.
 #ifdef GLUTEN_ENABLE_GPU
     ,
@@ -155,16 +93,11 @@ class ValueStream : public facebook::velox::exec::SourceOperator
 #endif
 {
  public:
-  ValueStream(
+  CudfValueStream(
       int32_t operatorId,
       facebook::velox::exec::DriverCtx* driverCtx,
       std::shared_ptr<const ValueStreamNode> valueStreamNode)
-      : facebook::velox::exec::SourceOperator(
-            driverCtx,
-            valueStreamNode->outputType(),
-            operatorId,
-            valueStreamNode->id(),
-            valueStreamNode->name().data())
+      : ValueStream(operatorId, driverCtx, valueStreamNode)
 #ifdef GLUTEN_ENABLE_GPU
         ,
         facebook::velox::cudf_velox::NvtxHelper(
@@ -174,41 +107,17 @@ class ValueStream : public facebook::velox::exec::SourceOperator
 #endif
   {
     ResultIterator* itr = valueStreamNode->iterator();
-    rvStream_ = std::make_unique<RowVectorStream>(driverCtx, pool(), itr, outputType_);
+    rvStream_ = std::make_unique<CudfVectorStream>(driverCtx, pool(), itr, outputType_);
   }
-
-  facebook::velox::RowVectorPtr getOutput() override {
-    if (finished_) {
-      return nullptr;
-    }
-    if (rvStream_->hasNext()) {
-      return rvStream_->next();
-    } else {
-      finished_ = true;
-      return nullptr;
-    }
-  }
-
-  facebook::velox::exec::BlockingReason isBlocked(facebook::velox::ContinueFuture* /* unused */) override {
-    return facebook::velox::exec::BlockingReason::kNotBlocked;
-  }
-
-  bool isFinished() override {
-    return finished_;
-  }
-
- private:
-  bool finished_ = false;
-  std::unique_ptr<RowVectorStream> rvStream_;
 };
 
-class RowVectorStreamOperatorTranslator : public facebook::velox::exec::Operator::PlanNodeTranslator {
+class CudfVectorStreamOperatorTranslator : public facebook::velox::exec::Operator::PlanNodeTranslator {
   std::unique_ptr<facebook::velox::exec::Operator> toOperator(
       facebook::velox::exec::DriverCtx* ctx,
       int32_t id,
       const facebook::velox::core::PlanNodePtr& node) override {
-    if (auto valueStreamNode = std::dynamic_pointer_cast<const ValueStreamNode>(node)) {
-      return std::make_unique<ValueStream>(id, ctx, valueStreamNode);
+    if (auto valueStreamNode = std::dynamic_pointer_cast<const CudfValueStreamNode>(node)) {
+      return std::make_unique<CudfValueStream>(id, ctx, valueStreamNode);
     }
     return nullptr;
   }
