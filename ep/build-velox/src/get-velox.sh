@@ -17,7 +17,7 @@
 set -exu
 
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
-VELOX_REPO=https://github.com/oap-project/velox.git
+VELOX_REPO=https://github.com/jinchengchenghh/velox.git
 VELOX_BRANCH=2025_10_20
 VELOX_HOME=""
 RUN_SETUP_SCRIPT=ON
