@@ -1231,6 +1231,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       nextPlanNodeId(), sortingKeys, sortingOrders, static_cast<int32_t>(topNRel.n()), false /*isPartial*/, childNode);
 }
 
+template <typename T>
 core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
     const ::substrait::ReadRel& readRel,
     int32_t streamIdx) {
@@ -1258,31 +1259,13 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
     VELOX_CHECK_LT(streamIdx, inputIters_.size(), "Could not find stream index {} in input iterator list.", streamIdx);
     iterator = inputIters_[streamIdx];
   }
-  auto node = std::make_shared<ValueStreamNode>(nextPlanNodeId(), outputType, std::move(iterator));
+  auto node = std::make_shared<T>(nextPlanNodeId(), outputType, std::move(iterator));
 
   auto splitInfo = std::make_shared<SplitInfo>();
   splitInfo->isStream = true;
   splitInfoMap_[node->id()] = splitInfo;
   return node;
 }
-
-#ifdef GLUTEN_ENABLE_GPU
-core::PlanNodePtr SubstraitToVeloxPlanConverter::constructCudfValueStreamNode(
-    const ::substrait::ReadRel& readRel,
-    int32_t streamIdx) {
-  std::shared_ptr<ResultIterator> iterator;
-  if (!validationMode_) {
-    VELOX_CHECK_LT(streamIdx, inputIters_.size(), "Could not find stream index {} in input iterator list.", streamIdx);
-    iterator = inputIters_[streamIdx];
-  }
-  auto node = std::make_shared<CudfValueStreamNode>(nextPlanNodeId(), outputType, std::move(iterator));
-
-  auto splitInfo = std::make_shared<SplitInfo>();
-  splitInfo->isStream = true;
-  splitInfoMap_[node->id()] = splitInfo;
-  return node;
-}
-#endif
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValuesNode(
     const ::substrait::ReadRel& readRel,
@@ -1315,11 +1298,11 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   if (streamIdx >= 0) {
     // Only used in benchmark enable query trace, replace ValueStreamNode to ValuesNode to support serialization.
     if (!veloxCfg_->get<bool>(kQueryTraceEnabled, false)) {
-      return constructValueStreamNode(readRel, streamIdx);
+      return constructValueStreamNode<ValueStreamNode>(readRel, streamIdx);
     }
 #ifdef GLUTEN_ENABLE_GPU
     else if (veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
-      constructCudfValueStreamNode(readRel, streamIdx);
+      constructValueStreamNode<CudfValueStreamNode>(readRel, streamIdx);
     }
 #endif
     else {
@@ -1614,5 +1597,12 @@ bool SubstraitToVeloxPlanConverter::checkTypeExtension(const ::substrait::Plan& 
   }
   return true;
 }
+
+#ifdef GLUTEN_ENABLE_GPU
+template core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode<CudfValueStreamNode>(const ::substrait::ReadRel& sRead, int32_t streamIdx);
+#endif
+
+template core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode<ValueStreamNode>(const ::substrait::ReadRel& sRead, int32_t streamIdx);
+
 
 } // namespace gluten

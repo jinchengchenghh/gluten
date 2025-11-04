@@ -133,11 +133,9 @@ class SubstraitToVeloxPlanConverter {
   /// FileProperties: the file sizes and modification times of the files to be scanned.
   core::PlanNodePtr toVeloxPlan(const ::substrait::ReadRel& sRead);
 
+  template <typename T>
   core::PlanNodePtr constructValueStreamNode(const ::substrait::ReadRel& sRead, int32_t streamIdx);
 
-#ifdef GLUTEN_ENABLE_GPU
-  core::PlanNodePtr constructCudfValueStreamNode(const ::substrait::ReadRel& sRead, int32_t streamIdx);
-#endif
   // This is only used in benchmark and enable query trace, which will load all the data to ValuesNode.
   core::PlanNodePtr constructValuesNode(const ::substrait::ReadRel& sRead, int32_t streamIdx);
 
@@ -302,5 +300,4 @@ class SubstraitToVeloxPlanConverter {
   /// A flag used to specify validation.
   bool validationMode_ = false;
 };
-
 } // namespace gluten

@@ -70,7 +70,7 @@ bool RowVectorStream::hasNext() {
   return hasNext;
 }
 
-std::shared_ptr<ColumnarBatch> cb RowVectorStream::nextInternal() {
+std::shared_ptr<ColumnarBatch> RowVectorStream::nextInternal() {
   if (finished_) {
     return nullptr;
   }

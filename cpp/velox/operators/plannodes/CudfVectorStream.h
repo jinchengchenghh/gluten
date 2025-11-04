@@ -23,7 +23,7 @@
 
 namespace gluten {
 
-class CudfVectorStream {
+class CudfVectorStream : public RowVectorStream {
  public:
   CudfVectorStream(
       facebook::velox::exec::DriverCtx* driverCtx,
@@ -33,7 +33,7 @@ class CudfVectorStream {
       : RowVectorStream(driverCtx, pool, iterator, outputType) {}
 
   // Convert arrow batch to row vector and use new output columns
-  facebook::velox::RowVectorPtr next() override{
+  facebook::velox::RowVectorPtr next() override {
     auto cb = nextInternal();
     if (cb == nullptr) {
       return nullptr;
@@ -85,7 +85,7 @@ class CudfValueStreamNode final : public facebook::velox::core::PlanNode {
   const std::vector<facebook::velox::core::PlanNodePtr> kEmptySources_;
 };
 
-class CudfValueStream : public facebook::velox::exec::SourceOperator
+class CudfValueStream : public ValueStream
 // Extends NvtxHelper to identify it as GPU node, so not add CudfFormVelox operator.
 #ifdef GLUTEN_ENABLE_GPU
     ,
