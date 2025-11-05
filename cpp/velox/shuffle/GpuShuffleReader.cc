@@ -211,7 +211,9 @@ GpuHashShuffleReaderDeserializer::GpuHashShuffleReaderDeserializer(
       readerBufferSize_(readerBufferSize),
       memoryManager_(memoryManager),
       deserializeTime_(deserializeTime),
-      decompressTime_(decompressTime) {}
+      decompressTime_(decompressTime) {
+        std::cout << "Create shuffle reader GpuHashShuffleReaderDeserializer "<<std::endl;
+      }
 
 bool GpuHashShuffleReaderDeserializer::resolveNextBlockType() {
   GLUTEN_ASSIGN_OR_THROW(auto blockType, readBlockType(in_.get()));
@@ -274,6 +276,8 @@ std::shared_ptr<ColumnarBatch> GpuHashShuffleReaderDeserializer::next() {
           decompressTime_));
 
   lockGpu();
+
+  std::cout << "[DEBUG] makeCudfTable"<<std::endl;
 
   return makeCudfTable(
       rowType_,
