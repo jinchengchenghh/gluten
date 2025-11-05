@@ -932,7 +932,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
       startPartitionId,
       splitBufferSize,
       splitBufferReallocThreshold);
-  std::cout <<"create GPU shuffle writer"<< static_cast<int32_t>(shuffleWriterType)<<std::endl;
+  std::cout <<"create GPU shuffle writer"<< static_cast<int32_t>(shuffleWriterOptions->shuffleWriterType)<<std::endl;
   return ctx->saveObject(ctx->createShuffleWriter(numPartitions, partitionWriter, shuffleWriterOptions));
   JNI_METHOD_END(kInvalidObjectHandle)
 }
@@ -1125,7 +1125,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrappe
   options.deserializerBufferSize = deserializerBufferSize;
 
   options.shuffleWriterType = ShuffleWriter::stringToType(jStringToCString(env, shuffleWriterType));
-  std::cout <<"create GPU shuffle reader"<< options.shuffleWriterType<<std::endl;
+  std::cout <<"create GPU shuffle reader"<< static_cast<int32_t>(options.shuffleWriterType)<<std::endl;
   std::shared_ptr<arrow::Schema> schema =
       arrowGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
 
