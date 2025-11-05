@@ -29,6 +29,9 @@ class VeloxColumnarBatch final : public ColumnarBatch {
   VeloxColumnarBatch(facebook::velox::RowVectorPtr rowVector)
       : ColumnarBatch(rowVector->childrenSize(), rowVector->size()), rowVector_(rowVector) {}
 
+  VeloxColumnarBatch(facebook::velox::RowVectorPtr rowVector, int32_t columnSize)
+      : ColumnarBatch(columnSize, rowVector->size()), rowVector_(rowVector) {}
+
   std::string getType() const override {
     return kType;
   }
