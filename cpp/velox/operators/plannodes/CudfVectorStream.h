@@ -47,6 +47,7 @@ class CudfVectorStream : public RowVectorStream {
       std::cout <<vp->toString()<< std::endl;
     }
     VELOX_CHECK_NOT_NULL(cudfVector);
+    std::cout <<"got the CudfVector in CudfVectorStream"<< std::endl;
     return std::make_shared<facebook::velox::cudf_velox::CudfVector>(
         vp->pool(), outputType_, vp->size(), cudfVector->release(), cudfVector->stream());
   }

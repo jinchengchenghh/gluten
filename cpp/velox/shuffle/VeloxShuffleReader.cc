@@ -534,6 +534,7 @@ std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
       BlockPayload::deserialize(
           in_.get(), codec_, memoryManager_->defaultArrowMemoryPool(), numRows, deserializeTime_, decompressTime_));
 
+  std::cout <<"generate the CPU Rowvector "<< std::endl;
   return makeColumnarBatch(
       rowType_,
       numRows,
