@@ -175,6 +175,8 @@ object BroadcastUtils {
           val handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, b)
           numRows += b.numRows()
           try {
+            print(s"serialize batch with numRows ${b.numRows()}\n")
+            Thread.currentThread().getStackTrace.foreach(s => print(s"${s.toString}\n"))
             ColumnarBatchSerializerJniWrapper
               .create(
                 Runtimes

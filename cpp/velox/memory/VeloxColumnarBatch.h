@@ -38,14 +38,14 @@ class VeloxColumnarBatch final : public ColumnarBatch {
             std::cout << "VeloxColumnarBatch is CudfVector" << std::endl;
         } else {
             std::cout << "VeloxColumnarBatch is veloxVector" << std::endl;
-            void* callstack[128];
-            int frames = backtrace(callstack, 128);
-            char** strs = backtrace_symbols(callstack, frames);
-            std::cout << "[STACK TRACE]" << std::endl;
-            for (int i = 0; i < frames; ++i) {
-                std::cout << strs[i] << std::endl;
-            }
-            free(strs);
+            // void* callstack[128];
+            // int frames = backtrace(callstack, 128);
+            // char** strs = backtrace_symbols(callstack, frames);
+            // std::cout << "[STACK TRACE]" << std::endl;
+            // for (int i = 0; i < frames; ++i) {
+            //     std::cout << strs[i] << std::endl;
+            // }
+            // free(strs);
         }
       }
 

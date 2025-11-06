@@ -172,6 +172,8 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with Logging {
 
           override def next(): CachedBatch = {
             val batch = veloxBatches.next()
+            print(s"serialize batch with numRows in cache batch${batch.numRows()}\n")
+            Thread.currentThread().getStackTrace.foreach(s => print(s"${s.toString}\n"))
             val results =
               ColumnarBatchSerializerJniWrapper
                 .create(
