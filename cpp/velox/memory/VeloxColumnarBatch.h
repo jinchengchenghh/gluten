@@ -34,7 +34,7 @@ class VeloxColumnarBatch final : public ColumnarBatch {
  public:
   VeloxColumnarBatch(facebook::velox::RowVectorPtr rowVector)
       : ColumnarBatch(rowVector->childrenSize(), rowVector->size()), rowVector_(rowVector) {
-        if (rowVector->childrenAt(0) == nullptr) {
+        if (rowVector->childAt(0) == nullptr) {
             std::cout << "VeloxColumnarBatch is CudfVector" << std::endl;
         } else {
             std::cout << "VeloxColumnarBatch is veloxVector" << std::endl;
