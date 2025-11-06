@@ -84,7 +84,8 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
         s
 
       case transformer: WholeStageTransformer =>
-        setTagForWholeStageTransformer(transformer)
+        print(s"whole stage transformer is not supported in cudf ${plan.toString()}")
+//        setTagForWholeStageTransformer(transformer)
         transformer
     }
   }
