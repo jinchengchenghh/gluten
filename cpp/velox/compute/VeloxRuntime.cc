@@ -63,7 +63,7 @@ VeloxRuntime::VeloxRuntime(
     : Runtime(kind, vmm, confMap) {
   // Refresh session config.
   veloxCfg_ =
-      std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap_));
+      std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap_), true);
   debugModeEnabled_ = veloxCfg_->get<bool>(kDebugModeEnabled, false);
   FLAGS_minloglevel = veloxCfg_->get<uint32_t>(kGlogSeverityLevel, FLAGS_minloglevel);
   FLAGS_v = veloxCfg_->get<uint32_t>(kGlogVerboseLevel, FLAGS_v);
@@ -155,6 +155,13 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
     const std::vector<std::shared_ptr<ResultIterator>>& inputs,
     const std::unordered_map<std::string, std::string>& sessionConf) {
   LOG_IF(INFO, debugModeEnabled_) << "VeloxRuntime session config:" << printConfig(confMap_);
+
+  // Read kCudfEnabled from sessionConf and set it to veloxCfg_
+  auto cudfEnabledIter = sessionConf.find("kCudfEnabled");
+  if (cudfEnabledIter != sessionConf.end()) {
+    veloxCfg_->set("kCudfEnabled", cudfEnabledIter->second);
+    LOG_IF(INFO, debugModeEnabled_) << "Set kCudfEnabled to " << cudfEnabledIter->second;
+  }
 
   VeloxPlanConverter veloxPlanConverter(
       inputs,
