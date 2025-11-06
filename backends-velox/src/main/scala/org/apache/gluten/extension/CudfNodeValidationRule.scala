@@ -40,37 +40,48 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
             _,
             _) =>
         setTagForWholeStageTransformer(w)
-        if (w.isCudf) {
+        val s = if (w.isCudf) {
           log.info("VeloxResizeBatchesExec is not supported in GPU")
-        }
-        val exec = GPUColumnarShuffleExchangeExec(
-          shuffle.outputPartitioning,
-          w,
-          shuffle.shuffleOrigin,
-          shuffle.projectOutputAttributes,
-          shuffle.advisoryPartitionSize)
-        val res = exec.doValidate()
-        if (w.isCudf && res.ok()) {
+          val exec = GPUColumnarShuffleExchangeExec(
+            shuffle.outputPartitioning,
+            w,
+            shuffle.shuffleOrigin,
+            shuffle.projectOutputAttributes,
+            shuffle.advisoryPartitionSize)
+          val res = exec.doValidate()
+          if (!res.ok()) {
+            throw new GlutenNotSupportException(res.reason())
+          }
           exec
-        } else {
-          throw new GlutenNotSupportException(res.reason())
+        } else shuffle
+
+        if (!w.isCudf) {
+          print(s"whole stage transformer is not supported in cudf ${w.toString()}")
         }
+        s
 
       case shuffle @ ColumnarShuffleExchangeExec(_, w: WholeStageTransformer, _, _, _) =>
         log.info("Set cuDF tag for ColumnarShuffleExchangeExec")
         setTagForWholeStageTransformer(w)
-        val exec = GPUColumnarShuffleExchangeExec(
-          shuffle.outputPartitioning,
-          w,
-          shuffle.shuffleOrigin,
-          shuffle.projectOutputAttributes,
-          shuffle.advisoryPartitionSize)
-        val res = exec.doValidate()
-        if (w.isCudf && res.ok()) {
+        val s = if (w.isCudf) {
+          log.info("VeloxResizeBatchesExec is not supported in GPU")
+          val exec = GPUColumnarShuffleExchangeExec(
+            shuffle.outputPartitioning,
+            w,
+            shuffle.shuffleOrigin,
+            shuffle.projectOutputAttributes,
+            shuffle.advisoryPartitionSize)
+          val res = exec.doValidate()
+          if (!res.ok()) {
+            throw new GlutenNotSupportException(res.reason())
+          }
           exec
-        } else {
-          throw new GlutenNotSupportException(res.reason())
+        } else shuffle
+
+        if (!w.isCudf) {
+          print(s"whole stage transformer is not supported in cudf ${w.toString()}")
         }
+        s
 
       case transformer: WholeStageTransformer =>
         setTagForWholeStageTransformer(transformer)
