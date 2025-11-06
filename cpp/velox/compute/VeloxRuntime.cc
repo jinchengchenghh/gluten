@@ -157,9 +157,9 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
   LOG_IF(INFO, debugModeEnabled_) << "VeloxRuntime session config:" << printConfig(confMap_);
 
   // Read kCudfEnabled from sessionConf and set it to veloxCfg_
-  auto cudfEnabledIter = sessionConf.find("kCudfEnabled");
+  auto cudfEnabledIter = sessionConf.find(kCudfEnabled);
   if (cudfEnabledIter != sessionConf.end()) {
-    veloxCfg_->set("kCudfEnabled", cudfEnabledIter->second);
+    veloxCfg_->set(kCudfEnabled, cudfEnabledIter->second);
     LOG_IF(INFO, debugModeEnabled_) << "Set kCudfEnabled to " << cudfEnabledIter->second;
   }
 

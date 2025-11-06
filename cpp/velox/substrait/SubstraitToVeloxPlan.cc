@@ -1298,17 +1298,15 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   if (streamIdx >= 0) {
 #ifdef GLUTEN_ENABLE_GPU
     if (veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
+      std::cout <<"CudfValueStreamNode generated"<< std::endl;
       return constructValueStreamNode<CudfValueStreamNode>(readRel, streamIdx);
     }
 #endif
-    // Only used in benchmark enable query trace, replace ValueStreamNode to ValuesNode to support serialization.
     if (!veloxCfg_->get<bool>(kQueryTraceEnabled, false)) {
       return constructValueStreamNode<ValueStreamNode>(readRel, streamIdx);
     }
-
-    else {
-      return constructValuesNode(readRel, streamIdx);
-    }
+    // Only used in benchmark enable query trace, replace ValueStreamNode to ValuesNode to support serialization.
+    return constructValuesNode(readRel, streamIdx);
   }
 
   // Otherwise, will create TableScan node for ReadRel.
