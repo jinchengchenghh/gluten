@@ -21,13 +21,33 @@
 #include "memory/VeloxMemoryManager.h"
 #include "velox/vector/ComplexVector.h"
 #include "velox/vector/arrow/Bridge.h"
+#include "velox/experimental/cudf/vector/CudfVector.h"
+
+#include <execinfo.h>
+#include <signal.h>
+#include <iostream>
+#include <cstdlib>
 
 namespace gluten {
 
 class VeloxColumnarBatch final : public ColumnarBatch {
  public:
   VeloxColumnarBatch(facebook::velox::RowVectorPtr rowVector)
-      : ColumnarBatch(rowVector->childrenSize(), rowVector->size()), rowVector_(rowVector) {}
+      : ColumnarBatch(rowVector->childrenSize(), rowVector->size()), rowVector_(rowVector) {
+        if (std::dynamic_pointer_cast<facebook::velox::cudf_velox::CudfVector>(rowVector)) {
+            std::cout << "VeloxColumnarBatch is CudfVector" << std::endl;
+        } else {
+            std::cout << "VeloxColumnarBatch is veloxVector" << std::endl;
+            void* callstack[128];
+            int frames = backtrace(callstack, 128);
+            char** strs = backtrace_symbols(callstack, frames);
+            std::cout << "[STACK TRACE]" << std::endl;
+            for (int i = 0; i < frames; ++i) {
+                std::cout << strs[i] << std::endl;
+            }
+            free(strs);
+        }
+      }
 
   VeloxColumnarBatch(facebook::velox::RowVectorPtr rowVector, int32_t columnSize)
       : ColumnarBatch(columnSize, rowVector->size()), rowVector_(rowVector) {}
