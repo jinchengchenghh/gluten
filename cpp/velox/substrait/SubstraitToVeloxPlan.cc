@@ -1298,7 +1298,6 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   if (streamIdx >= 0) {
 #ifdef GLUTEN_ENABLE_GPU
     if (veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
-      std::cout <<"CudfValueStreamNode generated"<< std::endl;
       return constructValueStreamNode<CudfValueStreamNode>(readRel, streamIdx);
     }
 #endif
