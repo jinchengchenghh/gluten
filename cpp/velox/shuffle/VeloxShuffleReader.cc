@@ -565,7 +565,9 @@ VeloxSortShuffleReaderDeserializer::VeloxSortShuffleReaderDeserializer(
       deserializerBufferSize_(deserializerBufferSize),
       deserializeTime_(deserializeTime),
       decompressTime_(decompressTime),
-      memoryManager_(memoryManager) {}
+      memoryManager_(memoryManager) {
+        std::cout <<"generate the VeloxSortShuffleReaderDeserializer "<< std::endl;
+      }
 
 VeloxSortShuffleReaderDeserializer::~VeloxSortShuffleReaderDeserializer() {
   if (auto in = std::dynamic_pointer_cast<CompressedInputStream>(in_)) {
