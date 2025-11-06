@@ -21,7 +21,7 @@
 #include "memory/VeloxMemoryManager.h"
 #include "velox/vector/ComplexVector.h"
 #include "velox/vector/arrow/Bridge.h"
-#include "velox/experimental/cudf/vector/CudfVector.h"
+// #include "velox/experimental/cudf/vector/CudfVector.h"
 
 #include <execinfo.h>
 #include <signal.h>
@@ -34,7 +34,7 @@ class VeloxColumnarBatch final : public ColumnarBatch {
  public:
   VeloxColumnarBatch(facebook::velox::RowVectorPtr rowVector)
       : ColumnarBatch(rowVector->childrenSize(), rowVector->size()), rowVector_(rowVector) {
-        if (std::dynamic_pointer_cast<facebook::velox::cudf_velox::CudfVector>(rowVector)) {
+        if (rowVector->childrenAt(0) == nullptr) {
             std::cout << "VeloxColumnarBatch is CudfVector" << std::endl;
         } else {
             std::cout << "VeloxColumnarBatch is veloxVector" << std::endl;
