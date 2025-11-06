@@ -45,6 +45,7 @@ class CudfVectorStream : public RowVectorStream {
     auto cudfVector = std::dynamic_pointer_cast<facebook::velox::cudf_velox::CudfVector>(vp);
     if (cudfVector == nullptr) {
       std::cout <<vp->toString()<< std::endl;
+      std::cout <<vp->toString(1)<< std::endl;
     }
     VELOX_CHECK_NOT_NULL(cudfVector);
     std::cout <<"got the CudfVector in CudfVectorStream"<< std::endl;
