@@ -53,10 +53,6 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
           if w.isCudf =>
         logInfo("Transform to GPUColumnarShuffleExchangeExec")
         createGPUColumnarExchange(shuffle, w)
-      case i @ InputIteratorTransformer(ColumnarInputAdapter(shuffle: ColumnarShuffleExchangeExec))
-          if i.isCudf =>
-        logInfo("Transform to GPUColumnarShuffleExchangeExec after InputIteratorTransformer")
-        createGPUColumnarExchange(shuffle, shuffle.child)
       // The BroadcastExchange is not supported now
     }
   }
