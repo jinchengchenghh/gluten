@@ -47,8 +47,8 @@ class CudfVectorStream : public RowVectorStream {
     auto cudfVector = std::dynamic_pointer_cast<facebook::velox::cudf_velox::CudfVector>(vp);
     if (cudfVector == nullptr) {
       // The vector may comes from BroadcastExchange, in this case, it's not a CudfVector.
-      auto stream = facebook::velox:cudf_velox::cudfGlobalStreamPool().get_stream();
-      auto cudfTable = facebook::velox::cudf_velox::toCudfTable(vp, vp->pool(), stream);
+      auto stream = facebook::velox::cudf_velox::cudfGlobalStreamPool().get_stream();
+      auto cudfTable = facebook::velox::cudf_velox::with_arrow::toCudfTable(vp, vp->pool(), stream);
       stream.synchronize();
       return std::make_shared<facebook::velox::cudf_velox::CudfVector>(
           vp->pool(), outputType_, vp->size(), cudfTable, stream);
