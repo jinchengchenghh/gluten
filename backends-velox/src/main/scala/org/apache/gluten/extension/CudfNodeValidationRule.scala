@@ -32,13 +32,14 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
     if (!glutenConf.enableColumnarCudf) {
       return plan
     }
+    logInfo("apply the plan for CudfNodeValidationRule")
     val transformedPlan = plan.transformUp {
       case transformer: WholeStageTransformer =>
-        print(s"whole stage transformer is not supported in cudf ${plan.toString()}")
         setTagForWholeStageTransformer(transformer)
+        logInfo(s"Whole stage transformer transforms to ${plan.toString()}")
         transformer
     }
-
+    logInfo(s"After transformUp, the plan is ${transformedPlan.toString()}")
     transformedPlan.transformUp {
       case shuffle @ ColumnarShuffleExchangeExec(
             _,
@@ -54,7 +55,7 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
         createGPUColumnarExchange(shuffle, w)
       case i @ InputIteratorTransformer(ColumnarInputAdapter(shuffle: ColumnarShuffleExchangeExec))
           if i.isCudf =>
-        log.info("Transform to GPUColumnarShuffleExchangeExec after InputIteratorTransformer")
+        logInfo("Transform to GPUColumnarShuffleExchangeExec after InputIteratorTransformer")
         createGPUColumnarExchange(shuffle, shuffle.child)
       // The BroadcastExchange is not supported now
     }
