@@ -51,7 +51,7 @@ class CudfVectorStream : public RowVectorStream {
       auto cudfTable = facebook::velox::cudf_velox::with_arrow::toCudfTable(vp, vp->pool(), stream);
       stream.synchronize();
       return std::make_shared<facebook::velox::cudf_velox::CudfVector>(
-          vp->pool(), outputType_, vp->size(), cudfTable, stream);
+          vp->pool(), outputType_, vp->size(), std::move(cudfTable), stream);
     }
     VELOX_CHECK_NOT_NULL(cudfVector);
     return std::make_shared<facebook::velox::cudf_velox::CudfVector>(
