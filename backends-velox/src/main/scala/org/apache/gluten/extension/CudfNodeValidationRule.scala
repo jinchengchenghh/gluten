@@ -20,10 +20,10 @@ import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.cudf.VeloxCudfPlanValidatorJniWrapper
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution.{CudfTag, LeafTransformSupport, TransformSupport, VeloxResizeBatchesExec, WholeStageTransformer}
-import org.apache.gluten.extension.CudfNodeValidationRule.setTagForWholeStageTransformer
+import org.apache.gluten.extension.CudfNodeValidationRule.{createGPUColumnarExchange, setTagForWholeStageTransformer}
 
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, GPUColumnarShuffleExchangeExec, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarInputAdapter, ColumnarShuffleExchangeExec, GPUColumnarShuffleExchangeExec, InputIteratorTransformer, SparkPlan}
 
 // Add the node name prefix 'Cudf' to GlutenPlan when can offload to cudf
 case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPlan] {
@@ -32,61 +32,31 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
     if (!glutenConf.enableColumnarCudf) {
       return plan
     }
-    plan.transformUp {
-      case shuffle @ ColumnarShuffleExchangeExec(
-            _,
-            v @ VeloxResizeBatchesExec(w: WholeStageTransformer, _, _),
-            _,
-            _,
-            _) =>
-        setTagForWholeStageTransformer(w)
-        val s = if (w.isCudf) {
-          log.info("VeloxResizeBatchesExec is not supported in GPU")
-          val exec = GPUColumnarShuffleExchangeExec(
-            shuffle.outputPartitioning,
-            w,
-            shuffle.shuffleOrigin,
-            shuffle.projectOutputAttributes,
-            shuffle.advisoryPartitionSize)
-          val res = exec.doValidate()
-          if (!res.ok()) {
-            throw new GlutenNotSupportException(res.reason())
-          }
-          exec
-        } else shuffle
-
-        if (!w.isCudf) {
-          print(s"whole stage transformer is not supported in cudf ${w.toString()}")
-        }
-        s
-
-      case shuffle @ ColumnarShuffleExchangeExec(_, w: WholeStageTransformer, _, _, _) =>
-        log.info("Set cuDF tag for ColumnarShuffleExchangeExec")
-        setTagForWholeStageTransformer(w)
-        val s = if (w.isCudf) {
-          log.info("VeloxResizeBatchesExec is not supported in GPU")
-          val exec = GPUColumnarShuffleExchangeExec(
-            shuffle.outputPartitioning,
-            w,
-            shuffle.shuffleOrigin,
-            shuffle.projectOutputAttributes,
-            shuffle.advisoryPartitionSize)
-          val res = exec.doValidate()
-          if (!res.ok()) {
-            throw new GlutenNotSupportException(res.reason())
-          }
-          exec
-        } else shuffle
-
-        if (!w.isCudf) {
-          print(s"whole stage transformer is not supported in cudf ${w.toString()}")
-        }
-        s
-
+    val transformedPlan = plan.transformUp {
       case transformer: WholeStageTransformer =>
         print(s"whole stage transformer is not supported in cudf ${plan.toString()}")
-//        setTagForWholeStageTransformer(transformer)
+        setTagForWholeStageTransformer(transformer)
         transformer
+    }
+
+    transformedPlan.transformUp {
+      case shuffle @ ColumnarShuffleExchangeExec(
+            _,
+            VeloxResizeBatchesExec(w: WholeStageTransformer, _, _),
+            _,
+            _,
+            _) if w.isCudf =>
+        logInfo("Transform to GPUColumnarShuffleExchangeExec and remove VeloxResizeBatchesExec")
+        createGPUColumnarExchange(shuffle, w)
+      case shuffle @ ColumnarShuffleExchangeExec(_, w: WholeStageTransformer, _, _, _)
+          if w.isCudf =>
+        logInfo("Transform to GPUColumnarShuffleExchangeExec")
+        createGPUColumnarExchange(shuffle, w)
+      case i @ InputIteratorTransformer(ColumnarInputAdapter(shuffle: ColumnarShuffleExchangeExec))
+          if i.isCudf =>
+        log.info("Transform to GPUColumnarShuffleExchangeExec after InputIteratorTransformer")
+        createGPUColumnarExchange(shuffle, shuffle.child)
+      // The BroadcastExchange is not supported now
     }
   }
 }
@@ -118,5 +88,21 @@ object CudfNodeValidationRule {
     } else {
       transformer.setTagValue(CudfTag.CudfTag, true)
     }
+  }
+
+  def createGPUColumnarExchange(
+      shuffle: ColumnarShuffleExchangeExec,
+      child: SparkPlan): SparkPlan = {
+    val exec = GPUColumnarShuffleExchangeExec(
+      shuffle.outputPartitioning,
+      child,
+      shuffle.shuffleOrigin,
+      shuffle.projectOutputAttributes,
+      shuffle.advisoryPartitionSize)
+    val res = exec.doValidate()
+    if (!res.ok()) {
+      throw new GlutenNotSupportException(res.reason())
+    }
+    exec
   }
 }
