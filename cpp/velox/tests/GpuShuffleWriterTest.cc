@@ -37,6 +37,24 @@ using namespace facebook::velox;
 namespace gluten {
 
 namespace {
+
+class ColumnarBatchArray : public ColumnarBatchIterator {
+ public:
+  explicit ColumnarBatchArray(const std::vector<std::shared_ptr<ColumnarBatch>> batches)
+      : batches_(std::move(batches)) {}
+
+  std::shared_ptr<ColumnarBatch> next() override {
+    if (cursor_ >= batches_.size()) {
+      return nullptr;
+    }
+    return batches_[cursor_++];
+  }
+
+ private:
+  const std::vector<std::shared_ptr<ColumnarBatch>> batches_;
+  int32_t cursor_ = 0;
+};
+
 struct GpuShuffleTestParams {
   ShuffleWriterType shuffleWriterType;
   PartitionWriterType partitionWriterType;
@@ -89,6 +107,34 @@ RowVectorPtr mergeRowVectors(const std::vector<RowVectorPtr>& sources) {
   }
 
   return result;
+}
+
+RowVectorPtr mergeBufferColumnarBatches(std::vector<GpuBufferColumnarBatch>& bufferBatches) {
+  GpuBufferBatchesResizer resizer(
+      getDefaultMemoryManager()->getLeafMemoryPool().get(),
+      getDefaultMemoryManager()->getLeafMemoryPool().get(),
+      1200, // output one batch
+      0,
+      std::make_unique<ColumnarBatchArray>(bufferBatches));
+  auto cb = resizer.next();
+  auto batch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
+  VELOX_CHECK_NOT_NULL(batch);
+  auto vector = std::dynamic_pointer_cast<cudf_velox::CudfVector>(batch->getRowVector());
+  if (!vector) {
+    std::cerr << "[DEBUG] Batch is not a CudfVector!" << std::endl;
+  }
+  VELOX_CHECK_NOT_NULL(vector);
+
+  auto tableView = vector->getTableView();
+  std::cout << "[DEBUG] cudf::table_view columns: " << tableView.num_columns() << ", rows: " << tableView.num_rows()
+            << std::endl;
+
+  // Convert back to Velox
+  auto veloxVector = cudf_velox::with_arrow::toVeloxColumn(
+      tableView, getDefaultMemoryManager()->getLeafMemoryPool().get(), "", vector->stream());
+  std::cout << "[DEBUG] Velox RowVector type: " << veloxVector->type()->toString() << ", size: " << veloxVector->size()
+            << std::endl;
+  std::cout << "[DEBUG] Velox RowVector info: " << veloxVector->toString(0, 100) << std::endl;
 }
 
 std::vector<GpuShuffleTestParams> getTestParams() {
@@ -254,13 +300,13 @@ class GpuVeloxShuffleWriterTest : public ::testing::TestWithParam<GpuShuffleTest
     GLUTEN_ASSIGN_OR_THROW(file_, arrow::io::ReadableFile::Open(fileName))
   }
 
-  void getRowVectors(
+  void getBufferColumnarBatches(
       arrow::Compression::type compressionType,
       const RowTypePtr& rowType,
-      std::vector<facebook::velox::RowVectorPtr>& vectors,
+      std::vector<GpuBufferColumnarBatch>& bufferBatches,
       std::shared_ptr<arrow::io::InputStream> in) {
     // --- Debug: Start ---
-    std::cout << "[DEBUG] Enter getRowVectors()" << std::endl;
+    std::cout << "[DEBUG] Enter getBufferColumnarBatches()" << std::endl;
     std::cout << "[DEBUG] Compression type: " << static_cast<int>(compressionType) << std::endl;
     std::cout << "[DEBUG] Row type: " << rowType->toString() << std::endl;
     // --- Debug: End ---
@@ -283,46 +329,17 @@ class GpuVeloxShuffleWriterTest : public ::testing::TestWithParam<GpuShuffleTest
     const auto reader = std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
     const auto iter = reader->read(std::make_shared<TestStreamReader>(std::move(in)));
 
-    int batchIndex = 0;
     while (iter->hasNext()) {
       std::cout << "[DEBUG] Reading batch " << batchIndex << "..." << std::endl;
 
-      auto rowVector = std::dynamic_pointer_cast<VeloxColumnarBatch>(iter->next())->getRowVector();
+      auto cb = std::dynamic_pointer_cast<GpuBufferColumnarBatch>(iter->next());
 
-      if (!rowVector) {
-        std::cerr << "[DEBUG] Null RowVector for batch " << batchIndex << std::endl;
+      if (!cb) {
+        std::cerr << "[DEBUG] Null GpuBufferColumnarBatch for batch " << batchIndex << std::endl;
         continue;
       }
 
-      std::cout << "[DEBUG] Velox RowVector type: " << rowVector->type()->toString() << ", size: " << rowVector->size()
-                << std::endl;
-
-      // Cast to CudfVector
-      auto vector = std::dynamic_pointer_cast<cudf_velox::CudfVector>(rowVector);
-      if (!vector) {
-        std::cerr << "[DEBUG] Batch " << batchIndex << " is not a CudfVector!" << std::endl;
-      }
-      VELOX_CHECK(vector);
-
-      auto tableView = vector->getTableView();
-      std::cout << "[DEBUG] cudf::table_view columns: " << tableView.num_columns() << ", rows: " << tableView.num_rows()
-                << std::endl;
-
-      // Convert back to Velox
-      auto veloxVector = cudf_velox::with_arrow::toVeloxColumn(
-          tableView, getDefaultMemoryManager()->getLeafMemoryPool().get(), "", vector->stream());
-
-      if (!veloxVector) {
-        std::cerr << "[DEBUG] cudf_velox::with_arrow::toVeloxColumn returned null for batch " << batchIndex
-                  << std::endl;
-        continue;
-      }
-
-      std::cout << "[DEBUG] Converted Velox vector type: " << veloxVector->type()->toString()
-                << ", size: " << veloxVector->size() << std::endl;
-
-      vectors.emplace_back(veloxVector);
-      ++batchIndex;
+      bufferBatches.emplace_back(cb);
     }
 
     std::cout << "[DEBUG] Finished reading " << vectors.size() << " batches." << std::endl;
@@ -378,7 +395,7 @@ class GpuVeloxShuffleWriterTest : public ::testing::TestWithParam<GpuShuffleTest
         }
         ASSERT_EQ(lengths[i], 0);
       } else {
-        std::vector<RowVectorPtr> deserializedVectors;
+        std::vector<GpuBufferColumnarBatchPtr> deserializedVectors;
 
         // Compute byte range for this partition
         int64_t start = offset;
@@ -390,12 +407,13 @@ class GpuVeloxShuffleWriterTest : public ::testing::TestWithParam<GpuShuffleTest
         std::cout << "[DEBUG] Deserializing partition " << i << " from byte range [" << start << ", " << (start + size)
                   << ")" << std::endl;
 
-        getRowVectors(GetParam().compressionType, asRowType(expectedVectors[i][0]->type()), deserializedVectors, in);
+        getBufferColumnarBatches(
+            GetParam().compressionType, asRowType(expectedVectors[i][0]->type()), deserializedVectors, in);
 
         std::cout << "[DEBUG]   Expected deserializedVectors: " << deserializedVectors.size() << std::endl;
 
         auto expectedVector = mergeRowVectors(expectedVectors[i]);
-        auto deserializedVector = mergeRowVectors(deserializedVectors);
+        auto deserializedVector = mergeBufferColumnarBatches(deserializedVectors);
 
         std::cout << "[DEBUG]   Expected row count: " << expectedVector->size()
                   << ", Deserialized row count: " << deserializedVector->size() << std::endl;
