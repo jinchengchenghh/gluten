@@ -21,21 +21,21 @@ import org.apache.gluten.runtime.RuntimeAware;
 import org.apache.gluten.vectorized.ColumnarBatchInIterator;
 
 public class GpuBufferBatchResizerJniWrapper implements RuntimeAware {
-    private final Runtime runtime;
+  private final Runtime runtime;
 
-    private GpuBufferBatchResizerJniWrapper(Runtime runtime) {
-        this.runtime = runtime;
-    }
+  private GpuBufferBatchResizerJniWrapper(Runtime runtime) {
+    this.runtime = runtime;
+  }
 
-    public static GpuBufferBatchResizerJniWrapper create(Runtime runtime) {
-        return new GpuBufferBatchResizerJniWrapper(runtime);
-    }
+  public static GpuBufferBatchResizerJniWrapper create(Runtime runtime) {
+    return new GpuBufferBatchResizerJniWrapper(runtime);
+  }
 
-    @Override
-    public long rtHandle() {
-        return runtime.getHandle();
-    }
+  @Override
+  public long rtHandle() {
+    return runtime.getHandle();
+  }
 
-    public native long create(
-            int minOutputBatchSize, int maxOutputBatchSize, ColumnarBatchInIterator itr);
+  public native long create(
+      int minOutputBatchSize, int maxOutputBatchSize, ColumnarBatchInIterator itr);
 }

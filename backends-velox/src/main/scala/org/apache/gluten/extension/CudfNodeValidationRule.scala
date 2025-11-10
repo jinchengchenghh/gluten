@@ -19,10 +19,11 @@ package org.apache.gluten.extension
 import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.cudf.VeloxCudfPlanValidatorJniWrapper
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.execution.{CudfTag, GpuResizeBufferColumnarBatchesExec, LeafTransformSupport, TransformSupport, VeloxResizeBatchesExec, WholeStageTransformer}
+import org.apache.gluten.execution._
 import org.apache.gluten.extension.CudfNodeValidationRule.{createGPUColumnarExchange, setTagForWholeStageTransformer}
+
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarInputAdapter, ColumnarShuffleExchangeExec, GPUColumnarShuffleExchangeExec, InputIteratorTransformer, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, GPUColumnarShuffleExchangeExec, SparkPlan}
 
 // Add the node name prefix 'Cudf' to GlutenPlan when can offload to cudf
 case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPlan] {
@@ -100,6 +101,6 @@ object CudfNodeValidationRule {
       throw new GlutenNotSupportException(res.reason())
     }
     // The max is not used, just set a default value, may optimize later
-    GpuResizeBufferColumnarBatchesExec(exec, 10000, 0)
+    GpuResizeBufferColumnarBatchExec(exec, 10000, 0)
   }
 }
