@@ -35,7 +35,7 @@ class GpuBufferColumnarBatch final : public ColumnarBatch {
       facebook::velox::RowTypePtr rowType,
       std::vector<std::shared_ptr<arrow::Buffer>>&& buffers,
       int32_t numRows)
-      : ColumnarBatch(rowType->children().size(), numRows), rowType_(rowType), buffers_(buffers) {}
+      : ColumnarBatch(rowType->children().size(), numRows), rowType_(rowType), buffers_(std::move(buffers)) {}
 
   std::string getType() const override {
     return kType;
@@ -49,12 +49,12 @@ class GpuBufferColumnarBatch final : public ColumnarBatch {
     return buffers_;
   }
 
-  const std::shared_ptr<arrow::Buffer>& bufferAt() const {
+  const std::shared_ptr<arrow::Buffer>& bufferAt(size_t i) const {
     return buffers_[i];
   }
 
   static std::shared_ptr<GpuBufferColumnarBatch> compose(
-      facebook::velox::memory::MemoryPool* pool,
+      arrow::MemoryPool* pool,
       const std::vector<std::shared_ptr<GpuBufferColumnarBatch>>& batches,
       int32_t numRows);
 

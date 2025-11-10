@@ -26,11 +26,7 @@
 #include "utils/Common.h"
 #include "utils/Macros.h"
 #include "utils/Timer.h"
-#include "utils/VeloxArrowUtils.h"
-#include "velox/experimental/cudf/exec/Utilities.h"
-#include "velox/experimental/cudf/exec/VeloxCudfInterop.h"
-#include "velox/experimental/cudf/vector/CudfVector.h"
-#include "velox/vector/FlatVector.h"
+#include "memory/GpuBufferColumnarBatch.h"
 
 #include <algorithm>
 

@@ -44,7 +44,8 @@ std::vector<char> GpuBufferColumnarBatch::toUnsafeRow(int32_t rowId) const {
 }
 
 int64_t GpuBufferColumnarBatch::numBytes() {
-  int64_t numBytes = 0 for (const auto& buffer : buffers_) {
+  int64_t numBytes = 0;
+  for (const auto& buffer : buffers_) {
     numBytes += buffer->size();
   }
   return numBytes;
@@ -96,12 +97,12 @@ std::shared_ptr<GpuBufferColumnarBatch> GpuBufferColumnarBatch::compose(
   std::vector<std::shared_ptr<arrow::Buffer>> returnBuffers;
   returnBuffers.reserve(bufferSize);
   for (auto size : bufferSizes) {
+    std::shared_ptr<arrow::Buffer> buffer;
     // May optimize to reuse the first batch buffer.
-    GLUTEN_ASSIGN_OR_THROW(auto buffer, arrow::AllocateResizableBuffer(size, pool));
+    GLUTEN_ASSIGN_OR_THROW(buffer, arrow::AllocateResizableBuffer(size, pool));
     returnBuffers.emplace_back(buffer);
   }
 
-  const auto& type = batches->getRowType();
   int32_t bufferIdx = 0;
   for (const auto& colType : type->children()) {
     size_t rowNumber = 0;
@@ -138,7 +139,7 @@ std::shared_ptr<GpuBufferColumnarBatch> GpuBufferColumnarBatch::compose(
             returnBuffers[bufferIdx + 2]->mutable_data() + stringOffset,
             batch->bufferAt(bufferIdx + 2)->data(),
             batch->bufferAt(bufferIdx + 2)->size());
-        auto* lengths = reinterpret_cast<int32_t*>(batch->bufferAt(bufferIdx + 1)->data());
+        const auto* lengths = reinterpret_cast<const int32_t*>(batch->bufferAt(bufferIdx + 1)->data());
         auto* offsetBuffer = reinterpret_cast<int32_t*>(returnBuffers[bufferIdx + 1]->mutable_data());
         for (auto j = 0; j < batch->numRows(); ++j) {
           offsetBuffer[rowNumber + j] = stringOffset;
@@ -155,7 +156,7 @@ std::shared_ptr<GpuBufferColumnarBatch> GpuBufferColumnarBatch::compose(
     }
   }
 
-  return std::make_shared<GpuBufferColumnarBatch>(batches[0]->getRowType(), std::move(returnBuffers), rowNumber);
+  return std::make_shared<GpuBufferColumnarBatch>(batches[0]->getRowType(), std::move(returnBuffers), numRows);
 }
 
 } // namespace gluten

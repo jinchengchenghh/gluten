@@ -20,15 +20,15 @@ import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.RuntimeAware;
 import org.apache.gluten.vectorized.ColumnarBatchInIterator;
 
-public class GpuBufferBatchesResizerJniWrapper implements RuntimeAware {
+public class GpuBufferBatchResizerJniWrapper implements RuntimeAware {
     private final Runtime runtime;
 
-    private GpuBufferBatchesResizerJniWrapper(Runtime runtime) {
+    private GpuBufferBatchResizerJniWrapper(Runtime runtime) {
         this.runtime = runtime;
     }
 
-    public static GpuBufferBatchesResizerJniWrapper create(Runtime runtime) {
-        return new GpuBufferBatchesResizerJniWrapper(runtime);
+    public static GpuBufferBatchResizerJniWrapper create(Runtime runtime) {
+        return new GpuBufferBatchResizerJniWrapper(runtime);
     }
 
     @Override

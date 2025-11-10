@@ -27,6 +27,8 @@
 #include "tests/utils/TestStreamReader.h"
 #include "tests/utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"
+#include "memory/GpuBufferColumnarBatch.h"
+#include "utils/GpuBufferBatchResizer.h"
 
 #include "velox/experimental/cudf/exec/VeloxCudfInterop.h"
 #include "velox/experimental/cudf/vector/CudfVector.h"
@@ -40,7 +42,7 @@ namespace {
 
 class ColumnarBatchArray : public ColumnarBatchIterator {
  public:
-  explicit ColumnarBatchArray(const std::vector<std::shared_ptr<ColumnarBatch>> batches)
+  explicit ColumnarBatchArray(const std::vector<std::shared_ptr<GpuBufferColumnarBatch>> batches)
       : batches_(std::move(batches)) {}
 
   std::shared_ptr<ColumnarBatch> next() override {
@@ -51,7 +53,7 @@ class ColumnarBatchArray : public ColumnarBatchIterator {
   }
 
  private:
-  const std::vector<std::shared_ptr<ColumnarBatch>> batches_;
+  const std::vector<std::shared_ptr<GpuBufferColumnarBatch>> batches_;
   int32_t cursor_ = 0;
 };
 
@@ -109,9 +111,9 @@ RowVectorPtr mergeRowVectors(const std::vector<RowVectorPtr>& sources) {
   return result;
 }
 
-RowVectorPtr mergeBufferColumnarBatches(std::vector<GpuBufferColumnarBatch>& bufferBatches) {
-  GpuBufferBatchesResizer resizer(
-      getDefaultMemoryManager()->getLeafMemoryPool().get(),
+RowVectorPtr mergeBufferColumnarBatches(std::vector<std::shared_ptr<GpuBufferColumnarBatch>>& bufferBatches) {
+  GpuBufferBatchResizer resizer(
+      getDefaultMemoryManager()->defaultArrowMemoryPool(),
       getDefaultMemoryManager()->getLeafMemoryPool().get(),
       1200, // output one batch
       0,
@@ -135,6 +137,7 @@ RowVectorPtr mergeBufferColumnarBatches(std::vector<GpuBufferColumnarBatch>& buf
   std::cout << "[DEBUG] Velox RowVector type: " << veloxVector->type()->toString() << ", size: " << veloxVector->size()
             << std::endl;
   std::cout << "[DEBUG] Velox RowVector info: " << veloxVector->toString(0, 100) << std::endl;
+  return veloxVector;
 }
 
 std::vector<GpuShuffleTestParams> getTestParams() {
@@ -303,7 +306,7 @@ class GpuVeloxShuffleWriterTest : public ::testing::TestWithParam<GpuShuffleTest
   void getBufferColumnarBatches(
       arrow::Compression::type compressionType,
       const RowTypePtr& rowType,
-      std::vector<GpuBufferColumnarBatch>& bufferBatches,
+      std::vector<std::shared_ptr<GpuBufferColumnarBatch>>& bufferBatches,
       std::shared_ptr<arrow::io::InputStream> in) {
     // --- Debug: Start ---
     std::cout << "[DEBUG] Enter getBufferColumnarBatches()" << std::endl;
@@ -330,19 +333,17 @@ class GpuVeloxShuffleWriterTest : public ::testing::TestWithParam<GpuShuffleTest
     const auto iter = reader->read(std::make_shared<TestStreamReader>(std::move(in)));
 
     while (iter->hasNext()) {
-      std::cout << "[DEBUG] Reading batch " << batchIndex << "..." << std::endl;
 
       auto cb = std::dynamic_pointer_cast<GpuBufferColumnarBatch>(iter->next());
 
       if (!cb) {
-        std::cerr << "[DEBUG] Null GpuBufferColumnarBatch for batch " << batchIndex << std::endl;
+        std::cerr << "[DEBUG] Null GpuBufferColumnarBatch for batch " << std::endl;
         continue;
       }
 
       bufferBatches.emplace_back(cb);
     }
 
-    std::cout << "[DEBUG] Finished reading " << vectors.size() << " batches." << std::endl;
   }
 
   void shuffleWriteReadMultiBlocks(
@@ -395,7 +396,7 @@ class GpuVeloxShuffleWriterTest : public ::testing::TestWithParam<GpuShuffleTest
         }
         ASSERT_EQ(lengths[i], 0);
       } else {
-        std::vector<GpuBufferColumnarBatchPtr> deserializedVectors;
+        std::vector<std::shared_ptr<GpuBufferColumnarBatch>> deserializedVectors;
 
         // Compute byte range for this partition
         int64_t start = offset;

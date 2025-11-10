@@ -20,7 +20,7 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.backendsapi.velox.VeloxBatchType
 import org.apache.gluten.iterator.ClosableIterator
 import org.apache.gluten.runtime.Runtimes
-import org.apache.gluten.utils.GpuBufferBatchesResizerJniWrapper
+import org.apache.gluten.utils.GpuBufferBatchResizerJniWrapper
 import org.apache.gluten.vectorized.{ColumnarBatchInIterator, ColumnarBatchOutIterator}
 import org.apache.spark.sql.catalyst.expressions.SortOrder
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
@@ -42,7 +42,7 @@ case class GpuResizeBufferColumnarBatchesExec(
 
   override protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
     val runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName, "GpuBufferColumnarBatchesResizer")
-    val outHandle = GpuBufferBatchesResizerJniWrapper.create(runtime).create(minOutputBatchSize, maxOutputBatchSize, new ColumnarBatchInIterator(BackendsApiManager.getBackendName, in))
+    val outHandle = GpuBufferBatchResizerJniWrapper.create(runtime).create(minOutputBatchSize, maxOutputBatchSize, new ColumnarBatchInIterator(BackendsApiManager.getBackendName, in))
     new ColumnarBatchOutIterator(runtime, outHandle).asScala
   }
 

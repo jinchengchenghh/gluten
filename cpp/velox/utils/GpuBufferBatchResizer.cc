@@ -17,7 +17,14 @@
 
 #include "GpuBufferBatchResizer.h"
 #include "cudf/GpuLock.h"
+#include "utils/Timer.h"
 #include "memory/GpuBufferColumnarBatch.h"
+#include "velox/experimental/cudf/exec/Utilities.h"
+#include "velox/experimental/cudf/exec/VeloxCudfInterop.h"
+#include "velox/experimental/cudf/vector/CudfVector.h"
+#include "velox/vector/FlatVector.h"
+
+#include <arrow/buffer.h>
 
 #include <cuda_runtime.h>
 #include <cudf/column/column.hpp>
@@ -29,8 +36,12 @@
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_buffer.hpp>
 
+using namespace facebook::velox;
+
 namespace gluten {
+
 namespace {
+
 struct DispatchColumn {
   rmm::cuda_stream_view stream;
   rmm::device_async_resource_ref mr;
@@ -77,20 +88,12 @@ struct DispatchColumn {
   /// We can optimize it in shuffle writer side, returns the offset buffer instead of length buffer.
   /// Then we don't need to recover the offsetBuf by rawLengths, also change the merge strategic, update the merge
   /// buffer offset from last offset.
-  std::unique_ptr<cudf::column> getOffsetsColumn(const StringLengthType* const rawLengths) {
+  std::unique_ptr<cudf::column> getOffsetsColumn(const std::shared_ptr<arrow::Buffer>& offsets) {
     VELOX_CHECK_GT(numRows, 0);
-
-    // --- 1. Build offsets on host ---
-    std::vector<int32_t> offsets(numRows + 1);
-    offsets[0] = 0;
-    for (size_t i = 0; i < numRows; ++i) {
-      offsets[i + 1] = offsets[i] + rawLengths[i];
-    }
-
     // --- 2. Copy offsets to GPU ---
-    rmm::device_buffer offsetBuf((numRows + 1) * sizeof(int32_t), stream, mr);
+    rmm::device_buffer offsetBuf(offsets->size(), stream, mr);
     CUDF_CUDA_TRY(cudaMemcpyAsync(
-        offsetBuf.data(), offsets.data(), (numRows + 1) * sizeof(int32_t), cudaMemcpyHostToDevice, stream.value()));
+        offsetBuf.data(), offsets->data(), offsets->size(), cudaMemcpyHostToDevice, stream.value()));
 
     // --- 3. Empty null mask (no nulls in offset column) ---
     rmm::device_buffer nullBuf(0, stream, mr);
@@ -106,7 +109,7 @@ struct DispatchColumn {
 
   std::unique_ptr<cudf::column> readFlatColumnStringView(cudf::type_id /*typeId*/) {
     auto nulls = buffers[bufferIdx++];
-    auto lengths = buffers[bufferIdx++];
+    auto offsets = buffers[bufferIdx++];
     auto valueBuffer = buffers[bufferIdx++];
 
     if (numRows == 0) {
@@ -120,8 +123,7 @@ struct DispatchColumn {
         ? 0
         : cudf::null_count(reinterpret_cast<const cudf::bitmask_type*>(nulls->data()), 0, numRows, stream);
 
-    const auto* rawLength = lengths->data_as<StringLengthType>();
-    auto offsetColumn = getOffsetsColumn(rawLength);
+    auto offsetColumn = getOffsetsColumn(offsets);
 
     rmm::device_buffer chars(valueBuffer->size(), stream, mr);
     CUDF_CUDA_TRY(cudaMemcpyAsync(
@@ -169,7 +171,8 @@ std::shared_ptr<VeloxColumnarBatch> makeCudfTable(
 } // namespace
 
 GpuBufferBatchResizer::GpuBufferBatchResizer(
-    arrow::MemoryPool* arrowPool facebook::velox::memory::MemoryPool* pool,
+    arrow::MemoryPool* arrowPool,
+    facebook::velox::memory::MemoryPool* pool,
     int32_t minOutputBatchSize,
     int32_t maxOutputBatchSize,
     std::unique_ptr<ColumnarBatchIterator> in)
@@ -209,7 +212,7 @@ std::shared_ptr<ColumnarBatch> GpuBufferBatchResizer::next() {
   return makeCudfTable(batch->getRowType(), batch->numRows(), batch->buffers(), pool_, deserializeTime_);
 }
 
-int64_t GpuBufferBatchesResizer::spillFixedSize(int64_t size) {
+int64_t GpuBufferBatchResizer::spillFixedSize(int64_t size) {
   return in_->spillFixedSize(size);
 }
 

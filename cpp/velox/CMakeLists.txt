@@ -201,7 +201,7 @@ endif()
 
 if(ENABLE_GPU)
   list(APPEND VELOX_SRCS cudf/CudfPlanValidator.cc cudf/GpuLock.cc
-       shuffle/GpuShuffleReader.cc shuffle/GpuShuffleWriter.cc utils/GpuBufferBatchesResizer.cc memory/GpuBufferColumnarBatch.cc)
+       shuffle/GpuShuffleReader.cc shuffle/GpuShuffleWriter.cc utils/GpuBufferBatchResizer.cc memory/GpuBufferColumnarBatch.cc)
 endif()
 
 if(ENABLE_ENHANCED_FEATURES)

@@ -19,13 +19,12 @@
 #include "memory/VeloxColumnarBatch.h"
 #include "utils/Exception.h"
 #include "velox/common/memory/MemoryPool.h"
-#include "velox/vector/ComplexVector.h"
 
 namespace gluten {
 
-class GpuBufferBatchesResizer : public ColumnarBatchIterator {
+class GpuBufferBatchResizer : public ColumnarBatchIterator {
  public:
-  GpuBufferBatchesResizer(
+  GpuBufferBatchResizer(
       arrow::MemoryPool* arrowPool,
       facebook::velox::memory::MemoryPool* pool,
       int32_t minOutputBatchSize,
