@@ -49,7 +49,8 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
               _),
             _) if w.isCudf =>
         logInfo(
-          "Transform to GPUColumnarShuffleExchangeExec from AQEShuffleReadExec and ShuffleQueryStageExec")
+          "Transform to GPUColumnarShuffleExchangeExec from AQEShuffleReadExec" +
+            "and ShuffleQueryStageExec")
         GpuResizeBufferColumnarBatchExec(
           a.copy(child = s.copy(plan = createGPUColumnarExchange(shuffle))),
           10000,
@@ -67,7 +68,8 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
               _),
             _) if w.isCudf =>
         logInfo(
-          "Transform to GpuResizeBufferColumnarBatchExec from AQEShuffleReadExec and GpuResizeBufferColumnarBatchExec")
+          "Transform to GpuResizeBufferColumnarBatchExec from AQEShuffleReadExec" +
+            "and GpuResizeBufferColumnarBatchExec")
         GpuResizeBufferColumnarBatchExec(
           a.copy(child = s.copy(plan = createGPUColumnarExchange(shuffle))),
           10000,
