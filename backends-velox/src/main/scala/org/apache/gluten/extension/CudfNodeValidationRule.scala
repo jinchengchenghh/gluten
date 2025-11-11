@@ -43,27 +43,21 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
             _) =>
         setTagForWholeStageTransformer(w)
         log.info("Transforms to GpuResizeBufferColumnarBatchExec with VeloxResizeBatchesExec")
-        GpuResizeBufferColumnarBatchExec(
-          GPUColumnarShuffleExchangeExec(
-            shuffle.outputPartitioning,
-            shuffle.child,
-            shuffle.shuffleOrigin,
-            shuffle.projectOutputAttributes,
-            shuffle.advisoryPartitionSize),
-          10000
-        )
+        GPUColumnarShuffleExchangeExec(
+          shuffle.outputPartitioning,
+          shuffle.child,
+          shuffle.shuffleOrigin,
+          shuffle.projectOutputAttributes,
+          shuffle.advisoryPartitionSize)
       case shuffle @ ColumnarShuffleExchangeExec(_, w: WholeStageTransformer, _, _, _) =>
         setTagForWholeStageTransformer(w)
         logInfo(s"Transforms to GpuResizeBufferColumnarBatchExec")
-        GpuResizeBufferColumnarBatchExec(
-          GPUColumnarShuffleExchangeExec(
-            shuffle.outputPartitioning,
-            w,
-            shuffle.shuffleOrigin,
-            shuffle.projectOutputAttributes,
-            shuffle.advisoryPartitionSize),
-          10000
-        )
+        GPUColumnarShuffleExchangeExec(
+          shuffle.outputPartitioning,
+          w,
+          shuffle.shuffleOrigin,
+          shuffle.projectOutputAttributes,
+          shuffle.advisoryPartitionSize)
       case transformer: WholeStageTransformer =>
         setTagForWholeStageTransformer(transformer)
         logInfo(s"Whole stage transformer transforms to ${transformer.toString()}")

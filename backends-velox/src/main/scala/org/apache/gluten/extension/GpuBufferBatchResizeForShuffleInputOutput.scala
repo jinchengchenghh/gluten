@@ -17,7 +17,7 @@
 package org.apache.gluten.extension
 
 import org.apache.gluten.config.{GlutenConfig, HashShuffleWriterType, VeloxConfig}
-import org.apache.gluten.execution.VeloxResizeBatchesExec
+import org.apache.gluten.execution.{GpuResizeBufferColumnarBatchExec, VeloxResizeBatchesExec}
 
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, SparkPlan}
@@ -27,14 +27,14 @@ import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, ShuffleQuery
  * Try to append [[VeloxResizeBatchesExec]] for shuffle input and output to make the batch sizes in
  * good shape.
  */
-case class AppendBatchResizeForShuffleInputAndOutput(glutenConfig: GlutenConfig)
+case class GpuBufferBatchResizeForShuffleInputOutput(glutenConfig: GlutenConfig)
   extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (glutenConfig.enableColumnarCudf) {
+    if (!glutenConfig.enableColumnarCudf) {
       return plan
     }
-
     val range = VeloxConfig.get.veloxResizeBatchesShuffleInputOutputRange
+    val batchSize = 10000
     plan.transformUp {
       case shuffle: ColumnarShuffleExchangeExec
           if shuffle.shuffleWriterType == HashShuffleWriterType &&
@@ -42,22 +42,19 @@ case class AppendBatchResizeForShuffleInputAndOutput(glutenConfig: GlutenConfig)
         val appendBatches =
           VeloxResizeBatchesExec(shuffle.child, range.min, range.max)
         shuffle.withNewChildren(Seq(appendBatches))
-      case a @ AQEShuffleReadExec(ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _), _)
-          if VeloxConfig.get.veloxResizeBatchesShuffleOutput =>
-        VeloxResizeBatchesExec(a, range.min, range.max)
-      // Since it's transformed in a bottom to up order, so we may first encountered
+      case a @ AQEShuffleReadExec(ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _), _) =>
+        GpuResizeBufferColumnarBatchExec(a, batchSize)
+      // Since it's transformed in a bottom to up order, so we may first encounter
       // ShuffeQueryStageExec, which is transformed to VeloxResizeBatchesExec(ShuffeQueryStageExec),
       // then we see AQEShuffleReadExec
       case a @ AQEShuffleReadExec(
-            VeloxResizeBatchesExec(
+            GpuResizeBufferColumnarBatchExec(
               s @ ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _),
-              _,
               _),
-            _) if VeloxConfig.get.veloxResizeBatchesShuffleOutput =>
-        VeloxResizeBatchesExec(a.copy(child = s), range.min, range.max)
-      case s @ ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _)
-          if VeloxConfig.get.veloxResizeBatchesShuffleOutput =>
-        VeloxResizeBatchesExec(s, range.min, range.max)
+            _) =>
+        GpuResizeBufferColumnarBatchExec(a.copy(child = s), 10000)
+      case s @ ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _) =>
+        GpuResizeBufferColumnarBatchExec(s, 10000)
     }
   }
 }

@@ -108,7 +108,10 @@ object VeloxRuleApi {
           offloads))
 
     // Legacy: Post-transform rules.
-    injector.injectPostTransform(_ => AppendBatchResizeForShuffleInputAndOutput())
+    injector.injectPostTransform(
+      c => AppendBatchResizeForShuffleInputAndOutput(new GlutenConfig(c.sqlConf)))
+    injector.injectPostTransform(
+      c => GpuBufferBatchResizeForShuffleInputOutput(new GlutenConfig(c.sqlConf)))
     injector.injectPostTransform(_ => UnionTransformerRule())
     injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
     injector.injectPostTransform(_ => PartialGenerateRule())
@@ -208,7 +211,10 @@ object VeloxRuleApi {
 
     // Gluten RAS: Post rules.
     injector.injectPostTransform(_ => DistinguishIdenticalScans)
-    injector.injectPostTransform(_ => AppendBatchResizeForShuffleInputAndOutput())
+    injector.injectPostTransform(
+      c => AppendBatchResizeForShuffleInputAndOutput(new GlutenConfig(c.sqlConf)))
+    injector.injectPostTransform(
+      c => GpuBufferBatchResizeForShuffleInputOutput(new GlutenConfig(c.sqlConf)))
     injector.injectPostTransform(_ => RemoveTransitions)
     injector.injectPostTransform(_ => UnionTransformerRule())
     injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
