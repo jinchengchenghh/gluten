@@ -47,7 +47,7 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
               _,
               shuffle @ ColumnarShuffleExchangeExec(_, w: WholeStageTransformer, _, _, _),
               _),
-            _) if w.isCudf =>
+            _) =>
         logInfo(
           "Transform to GPUColumnarShuffleExchangeExec from AQEShuffleReadExec" +
             "and ShuffleQueryStageExec")
@@ -66,7 +66,7 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
                 _),
               _,
               _),
-            _) if w.isCudf =>
+            _) =>
         logInfo(
           "Transform to GpuResizeBufferColumnarBatchExec from AQEShuffleReadExec" +
             "and GpuResizeBufferColumnarBatchExec")
@@ -77,16 +77,18 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
       case s @ ShuffleQueryStageExec(
             _,
             shuffle @ ColumnarShuffleExchangeExec(_, w: WholeStageTransformer, _, _, _),
-            _) if w.isCudf =>
+            _) =>
         logInfo("Transform to GpuResizeBufferColumnarBatchExec from ShuffleQueryStageExec")
         GpuResizeBufferColumnarBatchExec(
           s.copy(plan = createGPUColumnarExchange(shuffle)),
           10000,
           10000)
-      case shuffle @ ColumnarShuffleExchangeExec(_, w: WholeStageTransformer, _, _, _)
-          if w.isCudf =>
+      case shuffle @ ColumnarShuffleExchangeExec(_, w: WholeStageTransformer, _, _, _) =>
         logInfo("Transform to GPUColumnarShuffleExchangeExec from ColumnarShuffleExchangeExec")
         createGPUColumnarExchange(shuffle)
+      case s =>
+        logInfo(s"Transform to GpuResizeBufferColumnarBatchExec from other node $s")
+        s
       // The BroadcastExchange is not supported now
     }
     logInfo(s"After transformUp, the final plan is ${finalPlan.toString()}")
