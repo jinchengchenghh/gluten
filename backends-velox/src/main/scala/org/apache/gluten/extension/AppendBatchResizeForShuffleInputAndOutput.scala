@@ -22,6 +22,7 @@ import org.apache.gluten.execution.VeloxResizeBatchesExec
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, ShuffleQueryStageExec}
+import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
 /**
  * Try to append [[VeloxResizeBatchesExec]] for shuffle input and output to make the batch sizes in
@@ -42,8 +43,13 @@ case class AppendBatchResizeForShuffleInputAndOutput(glutenConfig: GlutenConfig)
         val appendBatches =
           VeloxResizeBatchesExec(shuffle.child, range.min, range.max)
         shuffle.withNewChildren(Seq(appendBatches))
-      case a @ AQEShuffleReadExec(ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _), _)
-          if VeloxConfig.get.veloxResizeBatchesShuffleOutput =>
+      case a @ AQEShuffleReadExec(
+            ShuffleQueryStageExec(
+              _,
+              _: ColumnarShuffleExchangeExec |
+              ReusedExchangeExec(_, _: ColumnarShuffleExchangeExec),
+              _),
+            _) if VeloxConfig.get.veloxResizeBatchesShuffleOutput =>
         VeloxResizeBatchesExec(a, range.min, range.max)
       // Since it's transformed in a bottom to up order, so we may first encountered
       // ShuffeQueryStageExec, which is transformed to VeloxResizeBatchesExec(ShuffeQueryStageExec),
