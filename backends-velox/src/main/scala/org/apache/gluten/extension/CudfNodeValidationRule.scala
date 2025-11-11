@@ -35,6 +35,23 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
     }
     logInfo("apply the plan for CudfNodeValidationRule")
     val transformedPlan = plan.transformUp {
+      case shuffle @ ColumnarShuffleExchangeExec(
+            _,
+            v @ VeloxResizeBatchesExec(w: WholeStageTransformer, _, _),
+            _,
+            _,
+            _) =>
+        setTagForWholeStageTransformer(w)
+        log.info("Transforms to GpuResizeBufferColumnarBatchExec with VeloxResizeBatchesExec")
+        GpuResizeBufferColumnarBatchExec(
+          GPUColumnarShuffleExchangeExec(
+            shuffle.outputPartitioning,
+            shuffle.child,
+            shuffle.shuffleOrigin,
+            shuffle.projectOutputAttributes,
+            shuffle.advisoryPartitionSize),
+          10000
+        )
       case shuffle @ ColumnarShuffleExchangeExec(_, w: WholeStageTransformer, _, _, _) =>
         setTagForWholeStageTransformer(w)
         logInfo(s"Transforms to GpuResizeBufferColumnarBatchExec")
