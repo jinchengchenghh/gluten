@@ -35,9 +35,21 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
     }
     logInfo("apply the plan for CudfNodeValidationRule")
     val transformedPlan = plan.transformUp {
+      case shuffle @ ColumnarShuffleExchangeExec(_, w: WholeStageTransformer, _, _, _) =>
+        setTagForWholeStageTransformer(w)
+        logInfo(s"Transforms to GpuResizeBufferColumnarBatchExec")
+        GpuResizeBufferColumnarBatchExec(
+          GPUColumnarShuffleExchangeExec(
+            shuffle.outputPartitioning,
+            w,
+            shuffle.shuffleOrigin,
+            shuffle.projectOutputAttributes,
+            shuffle.advisoryPartitionSize),
+          10000
+        )
       case transformer: WholeStageTransformer =>
         setTagForWholeStageTransformer(transformer)
-        logInfo(s"Whole stage transformer transforms to ${plan.toString()}")
+        logInfo(s"Whole stage transformer transforms to ${transformer.toString()}")
         transformer
     }
     logInfo(s"After transformUp, the plan is ${transformedPlan.toString()}")
@@ -53,7 +65,6 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
             "and ShuffleQueryStageExec")
         GpuResizeBufferColumnarBatchExec(
           a.copy(child = s.copy(plan = createGPUColumnarExchange(shuffle))),
-          10000,
           10000)
       // Since it's transformed in a bottom to up order, so we may first encounter
       // ShuffeQueryStageExec, which is transformed to VeloxResizeBatchesExec(ShuffeQueryStageExec),
@@ -64,7 +75,6 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
                 _,
                 shuffle @ ColumnarShuffleExchangeExec(_, w: WholeStageTransformer, _, _, _),
                 _),
-              _,
               _),
             _) =>
         logInfo(
@@ -72,17 +82,13 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
             "and GpuResizeBufferColumnarBatchExec")
         GpuResizeBufferColumnarBatchExec(
           a.copy(child = s.copy(plan = createGPUColumnarExchange(shuffle))),
-          10000,
           10000)
       case s @ ShuffleQueryStageExec(
             _,
             shuffle @ ColumnarShuffleExchangeExec(_, w: WholeStageTransformer, _, _, _),
             _) =>
         logInfo("Transform to GpuResizeBufferColumnarBatchExec from ShuffleQueryStageExec")
-        GpuResizeBufferColumnarBatchExec(
-          s.copy(plan = createGPUColumnarExchange(shuffle)),
-          10000,
-          10000)
+        GpuResizeBufferColumnarBatchExec(s.copy(plan = createGPUColumnarExchange(shuffle)), 10000)
       case shuffle @ ColumnarShuffleExchangeExec(_, w: WholeStageTransformer, _, _, _) =>
         logInfo("Transform to GPUColumnarShuffleExchangeExec from ColumnarShuffleExchangeExec")
         createGPUColumnarExchange(shuffle)

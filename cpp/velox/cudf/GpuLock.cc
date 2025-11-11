@@ -59,7 +59,7 @@ void unlockGpu() {
     std::thread::id tid = std::this_thread::get_id();
     std::unique_lock<std::mutex> lock(getGpuLockState().gGpuMutex);
     if (!getGpuLockState().gGpuOwner.has_value()) {
-        LOG(INFO) <<"[DEBUG] unlockGpu() called by non-owner thread!"<< std::endl;
+        LOG(INFO) <<"unlockGpu() called by non-owner thread!"<< std::endl;
         return;
     }
 
