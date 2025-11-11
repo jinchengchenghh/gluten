@@ -24,6 +24,7 @@ import org.apache.gluten.extension.CudfNodeValidationRule.{createGPUColumnarExch
 
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, GPUColumnarShuffleExchangeExec, SparkPlan}
+import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, ShuffleQueryStageExec}
 
 // Add the node name prefix 'Cudf' to GlutenPlan when can offload to cudf
 case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPlan] {
@@ -40,21 +41,54 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
         transformer
     }
     logInfo(s"After transformUp, the plan is ${transformedPlan.toString()}")
-    transformedPlan.transformUp {
-      case shuffle @ ColumnarShuffleExchangeExec(
-            _,
-            VeloxResizeBatchesExec(w: WholeStageTransformer, _, _),
-            _,
-            _,
+    val finalPlan = transformedPlan.transformUp {
+      case a @ AQEShuffleReadExec(
+            s @ ShuffleQueryStageExec(
+              _,
+              shuffle @ ColumnarShuffleExchangeExec(_, w: WholeStageTransformer, _, _, _),
+              _),
             _) if w.isCudf =>
-        logInfo("Transform to GPUColumnarShuffleExchangeExec and remove VeloxResizeBatchesExec")
-        createGPUColumnarExchange(shuffle, w)
+        logInfo(
+          "Transform to GPUColumnarShuffleExchangeExec from AQEShuffleReadExec and ShuffleQueryStageExec")
+        GpuResizeBufferColumnarBatchExec(
+          a.copy(child = s.copy(plan = createGPUColumnarExchange(shuffle))),
+          10000,
+          10000)
+      // Since it's transformed in a bottom to up order, so we may first encounter
+      // ShuffeQueryStageExec, which is transformed to VeloxResizeBatchesExec(ShuffeQueryStageExec),
+      // then we see AQEShuffleReadExec
+      case a @ AQEShuffleReadExec(
+            GpuResizeBufferColumnarBatchExec(
+              s @ ShuffleQueryStageExec(
+                _,
+                shuffle @ ColumnarShuffleExchangeExec(_, w: WholeStageTransformer, _, _, _),
+                _),
+              _,
+              _),
+            _) if w.isCudf =>
+        logInfo(
+          "Transform to GpuResizeBufferColumnarBatchExec from AQEShuffleReadExec and GpuResizeBufferColumnarBatchExec")
+        GpuResizeBufferColumnarBatchExec(
+          a.copy(child = s.copy(plan = createGPUColumnarExchange(shuffle))),
+          10000,
+          10000)
+      case s @ ShuffleQueryStageExec(
+            _,
+            shuffle @ ColumnarShuffleExchangeExec(_, w: WholeStageTransformer, _, _, _),
+            _) if w.isCudf =>
+        logInfo("Transform to GpuResizeBufferColumnarBatchExec from ShuffleQueryStageExec")
+        GpuResizeBufferColumnarBatchExec(
+          s.copy(plan = createGPUColumnarExchange(shuffle)),
+          10000,
+          10000)
       case shuffle @ ColumnarShuffleExchangeExec(_, w: WholeStageTransformer, _, _, _)
           if w.isCudf =>
-        logInfo("Transform to GPUColumnarShuffleExchangeExec")
-        createGPUColumnarExchange(shuffle, w)
+        logInfo("Transform to GPUColumnarShuffleExchangeExec from ColumnarShuffleExchangeExec")
+        createGPUColumnarExchange(shuffle)
       // The BroadcastExchange is not supported now
     }
+    logInfo(s"After transformUp, the final plan is ${finalPlan.toString()}")
+    finalPlan
   }
 }
 
@@ -87,12 +121,10 @@ object CudfNodeValidationRule {
     }
   }
 
-  def createGPUColumnarExchange(
-      shuffle: ColumnarShuffleExchangeExec,
-      child: SparkPlan): SparkPlan = {
+  def createGPUColumnarExchange(shuffle: ColumnarShuffleExchangeExec): SparkPlan = {
     val exec = GPUColumnarShuffleExchangeExec(
       shuffle.outputPartitioning,
-      child,
+      shuffle.child,
       shuffle.shuffleOrigin,
       shuffle.projectOutputAttributes,
       shuffle.advisoryPartitionSize)
@@ -100,7 +132,6 @@ object CudfNodeValidationRule {
     if (!res.ok()) {
       throw new GlutenNotSupportException(res.reason())
     }
-    // The max is not used, just set a default value, may optimize later
-    GpuResizeBufferColumnarBatchExec(exec, 10000, 0)
+    exec
   }
 }

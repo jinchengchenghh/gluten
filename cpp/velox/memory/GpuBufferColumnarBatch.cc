@@ -156,6 +156,8 @@ std::shared_ptr<GpuBufferColumnarBatch> GpuBufferColumnarBatch::compose(
     }
   }
 
+  std::cout <<"[DEBUG] generate the GpuBufferColumnarBatch"<< std::endl;
+
   return std::make_shared<GpuBufferColumnarBatch>(batches[0]->getRowType(), std::move(returnBuffers), numRows);
 }
 
