@@ -37,7 +37,7 @@ case class GpuBufferBatchResizeForShuffleInputOutput(glutenConfig: GlutenConfig)
     val range = VeloxConfig.get.veloxResizeBatchesShuffleInputOutputRange
     val batchSize = 10000
     logInfo("try to apply GpuBufferBatchResizeForShuffleInputOutput")
-    plan.transformUp {
+    val finalPlan = plan.transformUp {
       case shuffle: ColumnarShuffleExchangeExec
           if shuffle.shuffleWriterType == HashShuffleWriterType &&
             VeloxConfig.get.veloxResizeBatchesShuffleInput =>
@@ -82,5 +82,8 @@ case class GpuBufferBatchResizeForShuffleInputOutput(glutenConfig: GlutenConfig)
         logInfo(s"got another AQEShuffleReadExec $a")
         a
     }
+
+    logInfo(s"After apply GpuBufferBatchResizeForShuffleInputOutput $finalPlan")
+    finalPlan
   }
 }
