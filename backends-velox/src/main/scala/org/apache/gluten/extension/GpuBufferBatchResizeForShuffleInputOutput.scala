@@ -74,7 +74,7 @@ case class GpuBufferBatchResizeForShuffleInputOutput(glutenConfig: GlutenConfig)
       case s @ ShuffleQueryStageExec(_, ReusedExchangeExec(_, _: ColumnarShuffleExchangeExec), _) =>
         GpuResizeBufferColumnarBatchExec(s, 10000)
       case a: AQEShuffleReadExec =>
-        logInfo(s"got another AQEShuffleReadExec ${a}")
+        logInfo(s"got another AQEShuffleReadExec $a")
         a
     }
   }
