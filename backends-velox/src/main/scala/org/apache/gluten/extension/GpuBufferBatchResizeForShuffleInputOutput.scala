@@ -20,7 +20,7 @@ import org.apache.gluten.config.{GlutenConfig, HashShuffleWriterType, VeloxConfi
 import org.apache.gluten.execution.{GpuResizeBufferColumnarBatchExec, VeloxResizeBatchesExec}
 
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, ColumnarShuffleExchangeExecBase, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
@@ -44,10 +44,12 @@ case class GpuBufferBatchResizeForShuffleInputOutput(glutenConfig: GlutenConfig)
         val appendBatches =
           VeloxResizeBatchesExec(shuffle.child, range.min, range.max)
         shuffle.withNewChildren(Seq(appendBatches))
-      case a @ AQEShuffleReadExec(ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _), _) =>
+      case a @ AQEShuffleReadExec(
+            ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExecBase, _),
+            _) =>
         GpuResizeBufferColumnarBatchExec(a, batchSize)
       case a @ AQEShuffleReadExec(
-            ShuffleQueryStageExec(_, ReusedExchangeExec(_, _: ColumnarShuffleExchangeExec), _),
+            ShuffleQueryStageExec(_, ReusedExchangeExec(_, _: ColumnarShuffleExchangeExecBase), _),
             _) =>
         logInfo("Apply to AQEShuffleReadExec with ReusedExchangeExec")
         GpuResizeBufferColumnarBatchExec(a, batchSize)
@@ -56,7 +58,7 @@ case class GpuBufferBatchResizeForShuffleInputOutput(glutenConfig: GlutenConfig)
       // then we see AQEShuffleReadExec
       case a @ AQEShuffleReadExec(
             GpuResizeBufferColumnarBatchExec(
-              s @ ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _),
+              s @ ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExecBase, _),
               _),
             _) =>
         GpuResizeBufferColumnarBatchExec(a.copy(child = s), 10000)
@@ -64,14 +66,17 @@ case class GpuBufferBatchResizeForShuffleInputOutput(glutenConfig: GlutenConfig)
             GpuResizeBufferColumnarBatchExec(
               s @ ShuffleQueryStageExec(
                 _,
-                ReusedExchangeExec(_, _: ColumnarShuffleExchangeExec),
+                ReusedExchangeExec(_, _: ColumnarShuffleExchangeExecBase),
                 _),
               _),
             _) =>
         GpuResizeBufferColumnarBatchExec(a.copy(child = s), 10000)
-      case s @ ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _) =>
+      case s @ ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExecBase, _) =>
         GpuResizeBufferColumnarBatchExec(s, 10000)
-      case s @ ShuffleQueryStageExec(_, ReusedExchangeExec(_, _: ColumnarShuffleExchangeExec), _) =>
+      case s @ ShuffleQueryStageExec(
+            _,
+            ReusedExchangeExec(_, _: ColumnarShuffleExchangeExecBase),
+            _) =>
         GpuResizeBufferColumnarBatchExec(s, 10000)
       case a: AQEShuffleReadExec =>
         logInfo(s"got another AQEShuffleReadExec $a")

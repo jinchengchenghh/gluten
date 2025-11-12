@@ -51,6 +51,8 @@ int64_t GpuBufferColumnarBatch::numBytes() {
   return numBytes;
 }
 
+// Optimize to release the previous buffer after merge it.
+// Optimize to not allocate the returned batch buffers in the beginning.
 std::shared_ptr<GpuBufferColumnarBatch> GpuBufferColumnarBatch::compose(
     arrow::MemoryPool* pool,
     const std::vector<std::shared_ptr<GpuBufferColumnarBatch>>& batches,
