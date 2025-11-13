@@ -66,7 +66,7 @@ std::shared_ptr<GpuBufferColumnarBatch> GpuBufferColumnarBatch::compose(
     int32_t numRows) {
   GLUTEN_CHECK(!batches.empty(), "No batches to compose");
   if (batches.size() == 1) {
-    std::cout <<"[DEBUG] return 1 GpuBufferColumnarBatch"<< std::endl;
+    std::cout <<"[DEBUG] return 1 GpuBufferColumnarBatch, thread id" << std::this_thread::get_id()<< std::endl;
     return batches[0];
   }
   // Compute the returned GpuBufferColumnarBatch buffers.
@@ -93,6 +93,7 @@ std::shared_ptr<GpuBufferColumnarBatch> GpuBufferColumnarBatch::compose(
   // This buffer may be more than the actual reauired buffer for null buffer.
   for (const auto& batch : batches) {
     if (batch->numRows() == 0) {
+      // TODO, need to update offset buffer even it is only one batch.
       continue;
     }
     for (auto i = 0; i < bufferSize; ++i) {
