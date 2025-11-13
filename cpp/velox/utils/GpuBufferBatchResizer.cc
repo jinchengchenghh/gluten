@@ -17,8 +17,8 @@
 
 #include "GpuBufferBatchResizer.h"
 #include "cudf/GpuLock.h"
-#include "utils/Timer.h"
 #include "memory/GpuBufferColumnarBatch.h"
+#include "utils/Timer.h"
 #include "velox/experimental/cudf/exec/Utilities.h"
 #include "velox/experimental/cudf/exec/VeloxCudfInterop.h"
 #include "velox/experimental/cudf/vector/CudfVector.h"
@@ -39,6 +39,117 @@
 using namespace facebook::velox;
 
 namespace gluten {
+namespace {
+
+struct BufferViewReleaser {
+  BufferViewReleaser() : BufferViewReleaser(nullptr) {}
+
+  BufferViewReleaser(std::shared_ptr<arrow::Buffer> arrowBuffer) : bufferReleaser_(std::move(arrowBuffer)) {}
+
+  void addRef() const {}
+
+  void release() const {}
+
+ private:
+  const std::shared_ptr<arrow::Buffer> bufferReleaser_;
+};
+
+BufferPtr wrapInBufferViewAsOwner(const void* buffer, size_t length, std::shared_ptr<arrow::Buffer> bufferReleaser) {
+  return BufferView<BufferViewReleaser>::create(
+      static_cast<const uint8_t*>(buffer), length, {std::move(bufferReleaser)});
+}
+
+BufferPtr convertToVeloxBuffer(std::shared_ptr<arrow::Buffer> buffer) {
+  if (buffer == nullptr) {
+    return nullptr;
+  }
+  return wrapInBufferViewAsOwner(buffer->data(), buffer->size(), buffer);
+}
+
+template <TypeKind Kind, typename T = typename TypeTraits<Kind>::NativeType>
+VectorPtr readFlatVector(
+    std::vector<BufferPtr>& buffers,
+    int32_t& bufferIdx,
+    uint32_t length,
+    std::shared_ptr<const Type> type,
+    memory::MemoryPool* pool) {
+  auto nulls = buffers[bufferIdx++];
+  auto valuesOrIndices = buffers[bufferIdx++];
+
+  nulls = nulls == nullptr || nulls->size() == 0 ? BufferPtr(nullptr) : nulls;
+
+  return std::make_shared<FlatVector<T>>(
+      pool, type, nulls, length, std::move(valuesOrIndices), std::vector<BufferPtr>{});
+}
+
+VectorPtr readFlatVectorStringView(
+    std::vector<BufferPtr>& buffers,
+    int32_t& bufferIdx,
+    uint32_t length,
+    std::shared_ptr<const Type> type,
+    memory::MemoryPool* pool) {
+  auto nulls = buffers[bufferIdx++];
+  auto lengthOrIndices = buffers[bufferIdx++];
+
+  nulls = nulls == nullptr || nulls->size() == 0 ? BufferPtr(nullptr) : nulls;
+
+  auto valueBuffer = buffers[bufferIdx++];
+
+  const auto* rawLength = lengthOrIndices->as<StringLengthType>();
+  const auto* valueBufferPtr = valueBuffer->as<char>();
+
+  auto values = AlignedBuffer::allocate<char>(sizeof(StringView) * length, pool);
+  auto* rawValues = values->asMutable<StringView>();
+
+  uint64_t offset = 0;
+  for (int32_t i = 0; i < length; ++i) {
+    rawValues[i] = StringView(valueBufferPtr + offset, rawLength[i]);
+    offset += rawLength[i];
+  }
+
+  std::vector<BufferPtr> stringBuffers;
+  stringBuffers.emplace_back(valueBuffer);
+
+  return std::make_shared<FlatVector<StringView>>(
+      pool, type, nulls, length, std::move(values), std::move(stringBuffers));
+}
+
+template <>
+VectorPtr readFlatVector<TypeKind::VARCHAR>(
+    std::vector<BufferPtr>& buffers,
+    int32_t& bufferIdx,
+    uint32_t length,
+    std::shared_ptr<const Type> type,
+    memory::MemoryPool* pool) {
+  return readFlatVectorStringView(buffers, bufferIdx, length, type, pool);
+}
+
+template <>
+VectorPtr readFlatVector<TypeKind::VARBINARY>(
+    std::vector<BufferPtr>& buffers,
+    int32_t& bufferIdx,
+    uint32_t length,
+    std::shared_ptr<const Type> type,
+    memory::MemoryPool* pool) {
+  return readFlatVectorStringView(buffers, bufferIdx, length, type, pool);
+}
+
+std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
+    RowTypePtr type,
+    uint32_t numRows,
+    const std::vector<std::shared_ptr<arrow::Buffer>>& arrowBuffers,
+    memory::MemoryPool* pool,
+    int64_t& deserializeTime) {
+  ScopedTimer timer(&deserializeTime);
+  std::vector<BufferPtr> veloxBuffers;
+  veloxBuffers.reserve(arrowBuffers.size());
+  for (auto& buffer : arrowBuffers) {
+    veloxBuffers.push_back(convertToVeloxBuffer(std::move(buffer)));
+  }
+  auto rowVector = deserialize(type, numRows, veloxBuffers, pool);
+  return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
+}
+} // namespace
 
 namespace {
 
@@ -92,8 +203,8 @@ struct DispatchColumn {
     VELOX_CHECK_GT(numRows, 0);
     // --- 2. Copy offsets to GPU ---
     rmm::device_buffer offsetBuf(offsets->size(), stream, mr);
-    CUDF_CUDA_TRY(cudaMemcpyAsync(
-        offsetBuf.data(), offsets->data(), offsets->size(), cudaMemcpyHostToDevice, stream.value()));
+    CUDF_CUDA_TRY(
+        cudaMemcpyAsync(offsetBuf.data(), offsets->data(), offsets->size(), cudaMemcpyHostToDevice, stream.value()));
 
     // --- 3. Empty null mask (no nulls in offset column) ---
     rmm::device_buffer nullBuf(0, stream, mr);
@@ -205,11 +316,13 @@ std::shared_ptr<ColumnarBatch> GpuBufferBatchResizer::next() {
   }
 
   // Compose all cached batches into one
-  auto batch = GpuBufferColumnarBatch::compose(arrowPool_, cachedBatches, cachedRows);
+  //   auto batch = GpuBufferColumnarBatch::compose(arrowPool_, cachedBatches, cachedRows);
 
+  auto batch = makeColumnarBatch(rowType_, cachedRows, batch->buffers(), pool_, deserializeTime_);
   lockGpu();
 
-  return makeCudfTable(batch->getRowType(), batch->numRows(), batch->buffers(), pool_, deserializeTime_);
+  //   return makeCudfTable(batch->getRowType(), batch->numRows(), batch->buffers(), pool_, deserializeTime_);
+  return batch;
 }
 
 int64_t GpuBufferBatchResizer::spillFixedSize(int64_t size) {
