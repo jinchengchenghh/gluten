@@ -122,8 +122,6 @@ std::shared_ptr<ColumnarBatch> GpuHashShuffleReaderDeserializer::next() {
       BlockPayload::deserialize(
           in_.get(), codec_, memoryManager_->defaultArrowMemoryPool(), numRows, deserializeTime_, decompressTime_));
 
-  std::cout << "[DEBUG] GpuBufferColumnarBatch" << std::endl;
-
   return std::make_shared<GpuBufferColumnarBatch>(rowType_, std::move(arrowBuffers), static_cast<int32_t>(numRows));
 }
 

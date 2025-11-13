@@ -65,8 +65,11 @@ std::shared_ptr<GpuBufferColumnarBatch> GpuBufferColumnarBatch::compose(
     const std::vector<std::shared_ptr<GpuBufferColumnarBatch>>& batches,
     int32_t numRows) {
   GLUTEN_CHECK(!batches.empty(), "No batches to compose");
+  if (batches.size() == 1) {
+    std::cout <<"[DEBUG] return 1 GpuBufferColumnarBatch"<< std::endl;
+    return batches[0];
+  }
   // Compute the returned GpuBufferColumnarBatch buffers.
-
   auto& type = batches[0]->getRowType();
   const auto bufferSize = batches[0]->buffers().size();
   std::vector<size_t> bufferSizes;
