@@ -419,7 +419,6 @@ class GpuVeloxShuffleWriterTest : public ::testing::TestWithParam<GpuShuffleTest
         std::cout << "[DEBUG]   Expected row count: " << expectedVector->size()
                   << ", Deserialized row count: " << deserializedVector->size() << std::endl;
 
-        try {
           std::cout << "[DEBUG]   Expected row vector: " << expectedVector->toString(0, 100)
                     << ", Deserialized row vector: " << deserializedVector->toString(0, 100) << std::endl;
 
@@ -430,10 +429,6 @@ class GpuVeloxShuffleWriterTest : public ::testing::TestWithParam<GpuShuffleTest
 
           facebook::velox::test::assertEqualVectors(expectedVector, deserializedVector);
           std::cout << "[DEBUG] ✅ Partition " << i << " vectors match" << std::endl;
-        } catch (const std::exception& e) {
-          std::cerr << "[DEBUG] ❌ Partition " << i << " mismatch: " << e.what() << std::endl;
-          throw;
-        }
       }
     }
 

@@ -57,7 +57,7 @@ case class GpuResizeBufferColumnarBatchExec(override val child: SparkPlan, minOu
     }
   }
 
-  override protected def needRecyclePayload: Boolean = false
+  override protected def needRecyclePayload: Boolean = true
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
