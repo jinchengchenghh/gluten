@@ -82,8 +82,10 @@ std::shared_ptr<GpuBufferColumnarBatch> GpuBufferColumnarBatch::compose(
   // This buffer may be more than the actual reauired buffer for null buffer.
   for (const auto& batch : batches) {
     for (auto i = 0; i < bufferSize; ++i) {
-      if (batch->bufferAt(i) == nullptr) {
-        continue;
+      // The null buffer may be null or length = 0.
+      // Maybe optimize later, detect if the null buffer is all true. And set the return null buffer to 0.
+      if (batch->bufferAt(i) == nullptr || batch->bufferAt(i)->size() == 0) {
+        bufferSizes[i] += arrow::bit_util::BytesForBits(batch->numRows());
       }
       bufferSizes[i] += batch->buffers()[i]->size();
     }
@@ -108,9 +110,8 @@ std::shared_ptr<GpuBufferColumnarBatch> GpuBufferColumnarBatch::compose(
   int32_t bufferIdx = 0;
   for (const auto& colType : type->children()) {
     size_t rowNumber = 0;
-    size_t nullBufferOffset = 0;
     // Also records the value buffer offset.
-    int32_t stringOffset = 0;
+    size_t stringOffset = 0;
     for (auto i = 0; i < batches.size(); ++i) {
       const auto& batch = batches[i];
       if (batch->numRows() == 0) {
@@ -119,28 +120,35 @@ std::shared_ptr<GpuBufferColumnarBatch> GpuBufferColumnarBatch::compose(
       // Combine the null buffer
       // The last byte may still have space to write when nullBitsRemainder != 0.
       auto* dst = returnBuffers[bufferIdx]->mutable_data();
+      std::cout <<"[DEBUG] compose null buffer, rowNumber: "<< rowNumber <<", batch->numRows(): "<< batch->numRows() << std::endl;
       if (batch->bufferAt(bufferIdx) == nullptr) {
+        std::cout << "[DEBUG] compose null buffer, set all bits to true" << std::endl;
         arrow::bit_util::SetBitsTo(dst, rowNumber, batch->numRows(), true);
       } else {
+        std::cout << "[DEBUG] compose non null buffer, copy bitmap" << std::endl;
         arrow::internal::CopyBitmap(batch->bufferAt(bufferIdx)->data(), 0, batch->numRows(), dst, rowNumber);
       }
+      std::cout <<"Set the null buffer succeeds"<< std::endl;
 
-      auto bytes = arrow::bit_util::BytesForBits(batch->numRows());
-      nullBufferOffset += bytes;
       if (colType->isFixedWidth()) {
         // The buffer is values.
         const auto bufferSize = batch->bufferAt(bufferIdx + 1)->size();
+        std::cout << "[DEBUG] compose fixed width buffer, memcpy" << std::endl;
+        VELOX_CHECK_LE(stringOffset + bufferSize, returnBuffers[bufferIdx + 1]->size());
         memcpy(
             returnBuffers[bufferIdx + 1]->mutable_data() + stringOffset,
             batch->bufferAt(bufferIdx + 1)->data(),
             bufferSize);
         stringOffset += bufferSize;
+        std::cout << "[DEBUG] composed fixed width buffer, stringOffset: "<< stringOffset << std::endl;
       } else {
+        std::cout << "[DEBUG] compose string buffer, memcpy" << std::endl;
         // String, lengths, values
         memcpy(
             returnBuffers[bufferIdx + 2]->mutable_data() + stringOffset,
             batch->bufferAt(bufferIdx + 2)->data(),
             batch->bufferAt(bufferIdx + 2)->size());
+        std::cout << "[DEBUG] composed string buffer, memcpy lengths" << std::endl;
         const auto* lengths = reinterpret_cast<const int32_t*>(batch->bufferAt(bufferIdx + 1)->data());
         auto* offsetBuffer = reinterpret_cast<int32_t*>(returnBuffers[bufferIdx + 1]->mutable_data());
         for (auto j = 0; j < batch->numRows(); ++j) {
@@ -150,12 +158,14 @@ std::shared_ptr<GpuBufferColumnarBatch> GpuBufferColumnarBatch::compose(
         offsetBuffer[rowNumber + batch->numRows()] = stringOffset;
       }
       rowNumber += batch->numRows();
+      std::cout << "[DEBUG] rowNumber is " << rowNumber << std::endl;
     }
     if (colType->isFixedWidth()) {
       bufferIdx += 2;
     } else {
       bufferIdx += 3;
     }
+    std::cout <<"Composed one column"<< std::endl;
   }
 
   std::cout <<"[DEBUG] generate the GpuBufferColumnarBatch"<< std::endl;
