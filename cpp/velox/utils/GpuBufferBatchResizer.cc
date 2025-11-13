@@ -95,7 +95,7 @@ VectorPtr readFlatVectorStringView(
 
   auto valueBuffer = buffers[bufferIdx++];
 
-  const auto* rawLength = lengthOrIndices->as<StringLengthType>();
+  const auto* rawLength = lengthOrIndices->as<int32_t>();
   const auto* valueBufferPtr = valueBuffer->as<char>();
 
   auto values = AlignedBuffer::allocate<char>(sizeof(StringView) * length, pool);
@@ -132,6 +132,26 @@ VectorPtr readFlatVector<TypeKind::VARBINARY>(
     std::shared_ptr<const Type> type,
     memory::MemoryPool* pool) {
   return readFlatVectorStringView(buffers, bufferIdx, length, type, pool);
+}
+
+RowVectorPtr deserialize(
+    RowTypePtr type,
+    uint32_t numRows,
+    std::vector<BufferPtr>& buffers,
+    memory::MemoryPool* pool) {
+  std::vector<VectorPtr> children;
+  auto types = type->as<TypeKind::ROW>().children();
+  int32_t bufferIdx = 0;
+  int32_t complexIdx = 0;
+  int32_t dictionaryIdx = 0;
+  for (size_t i = 0; i < types.size(); ++i) {
+    const auto kind = types[i]->kind();
+    auto res = VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(
+            readFlatVector, kind, buffers, bufferIdx, numRows, types[i], pool);
+    children.emplace_back(std::move(res));
+  }
+
+  return std::make_shared<RowVector>(pool, type, BufferPtr(nullptr), numRows, children);
 }
 
 std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
@@ -318,7 +338,7 @@ std::shared_ptr<ColumnarBatch> GpuBufferBatchResizer::next() {
   // Compose all cached batches into one
   //   auto batch = GpuBufferColumnarBatch::compose(arrowPool_, cachedBatches, cachedRows);
 
-  auto batch = makeColumnarBatch(rowType_, cachedRows, batch->buffers(), pool_, deserializeTime_);
+  auto batch = makeColumnarBatch(cachedBatches[0]->getRowType(), cachedRows, cachedBatches[0]->buffers(), pool_, deserializeTime_);
   lockGpu();
 
   //   return makeCudfTable(batch->getRowType(), batch->numRows(), batch->buffers(), pool_, deserializeTime_);
