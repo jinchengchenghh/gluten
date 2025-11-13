@@ -32,7 +32,7 @@ namespace gluten {
       kNull,
       kLength,
       kValue
-    }
+    };
   }
 
 using namespace facebook;

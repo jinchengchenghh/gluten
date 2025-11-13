@@ -35,7 +35,7 @@ case class GpuBufferBatchResizeForShuffleInputOutput(glutenConfig: GlutenConfig)
       return plan
     }
     val range = VeloxConfig.get.veloxResizeBatchesShuffleInputOutputRange
-    val batchSize = 10000
+    val batchSize = VeloxConfig.get.cudfBatchSize
     logInfo("try to apply GpuBufferBatchResizeForShuffleInputOutput")
     val finalPlan = plan.transformUp {
       case shuffle: ColumnarShuffleExchangeExec
@@ -61,7 +61,7 @@ case class GpuBufferBatchResizeForShuffleInputOutput(glutenConfig: GlutenConfig)
               s @ ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExecBase, _),
               _),
             _) =>
-        GpuResizeBufferColumnarBatchExec(a.copy(child = s), 10000)
+        GpuResizeBufferColumnarBatchExec(a.copy(child = s), batchSize)
       case a @ AQEShuffleReadExec(
             GpuResizeBufferColumnarBatchExec(
               s @ ShuffleQueryStageExec(
@@ -70,14 +70,14 @@ case class GpuBufferBatchResizeForShuffleInputOutput(glutenConfig: GlutenConfig)
                 _),
               _),
             _) =>
-        GpuResizeBufferColumnarBatchExec(a.copy(child = s), 10000)
+        GpuResizeBufferColumnarBatchExec(a.copy(child = s), batchSize)
       case s @ ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExecBase, _) =>
-        GpuResizeBufferColumnarBatchExec(s, 10000)
+        GpuResizeBufferColumnarBatchExec(s, batchSize)
       case s @ ShuffleQueryStageExec(
             _,
             ReusedExchangeExec(_, _: ColumnarShuffleExchangeExecBase),
             _) =>
-        GpuResizeBufferColumnarBatchExec(s, 10000)
+        GpuResizeBufferColumnarBatchExec(s, batchSize)
       case a: AQEShuffleReadExec =>
         logInfo(s"got another AQEShuffleReadExec $a")
         a
