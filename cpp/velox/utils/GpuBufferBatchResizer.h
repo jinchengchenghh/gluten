@@ -28,7 +28,6 @@ class GpuBufferBatchResizer : public ColumnarBatchIterator {
       arrow::MemoryPool* arrowPool,
       facebook::velox::memory::MemoryPool* pool,
       int32_t minOutputBatchSize,
-      int32_t maxOutputBatchSize,
       std::unique_ptr<ColumnarBatchIterator> in);
 
   std::shared_ptr<ColumnarBatch> next() override;
@@ -39,9 +38,7 @@ class GpuBufferBatchResizer : public ColumnarBatchIterator {
   arrow::MemoryPool* arrowPool_;
   facebook::velox::memory::MemoryPool* pool_;
   const int32_t minOutputBatchSize_;
-  const int32_t maxOutputBatchSize_;
   std::unique_ptr<ColumnarBatchIterator> in_;
-  int64_t deserializeTime_{0};
 };
 
 } // namespace gluten

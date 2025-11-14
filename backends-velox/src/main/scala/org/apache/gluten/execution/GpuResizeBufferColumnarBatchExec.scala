@@ -36,8 +36,6 @@ import scala.collection.JavaConverters._
 case class GpuResizeBufferColumnarBatchExec(override val child: SparkPlan, minOutputBatchSize: Int)
   extends ColumnarToColumnarExec(VeloxBatchType, VeloxBatchType) {
 
-  override def isSameConvention: Boolean = true
-
   override protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
     val runtime =
       Runtimes.contextInstance(BackendsApiManager.getBackendName, "GpuBufferColumnarBatchResizer")
@@ -45,7 +43,6 @@ case class GpuResizeBufferColumnarBatchExec(override val child: SparkPlan, minOu
       .create(runtime)
       .create(
         minOutputBatchSize,
-        0,
         new ColumnarBatchInIterator(BackendsApiManager.getBackendName, in.asJava))
     new ColumnarBatchOutIterator(runtime, outHandle).asScala
   }

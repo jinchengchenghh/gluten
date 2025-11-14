@@ -142,8 +142,6 @@ RowVectorPtr deserialize(
   std::vector<VectorPtr> children;
   auto types = type->as<TypeKind::ROW>().children();
   int32_t bufferIdx = 0;
-  int32_t complexIdx = 0;
-  int32_t dictionaryIdx = 0;
   for (size_t i = 0; i < types.size(); ++i) {
     const auto kind = types[i]->kind();
     auto res = VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(
@@ -158,9 +156,7 @@ std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
     RowTypePtr type,
     uint32_t numRows,
     const std::vector<std::shared_ptr<arrow::Buffer>>& arrowBuffers,
-    memory::MemoryPool* pool,
-    int64_t& deserializeTime) {
-  ScopedTimer timer(&deserializeTime);
+    memory::MemoryPool* pool) {
   std::vector<BufferPtr> veloxBuffers;
   veloxBuffers.reserve(arrowBuffers.size());
   for (auto& buffer : arrowBuffers) {
@@ -278,9 +274,7 @@ std::shared_ptr<VeloxColumnarBatch> makeCudfTable(
     RowTypePtr type,
     int32_t numRows,
     const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
-    memory::MemoryPool* pool,
-    int64_t& deserializeTime) {
-  ScopedTimer timer(&deserializeTime);
+    memory::MemoryPool* pool) {
   std::vector<std::unique_ptr<cudf::column>> cudfColumns;
   cudfColumns.reserve(type->size());
 
@@ -305,14 +299,12 @@ GpuBufferBatchResizer::GpuBufferBatchResizer(
     arrow::MemoryPool* arrowPool,
     facebook::velox::memory::MemoryPool* pool,
     int32_t minOutputBatchSize,
-    int32_t maxOutputBatchSize,
     std::unique_ptr<ColumnarBatchIterator> in)
     : arrowPool_(arrowPool),
       pool_(pool),
       minOutputBatchSize_(minOutputBatchSize),
-      maxOutputBatchSize_(maxOutputBatchSize),
       in_(std::move(in)) {
-  GLUTEN_CHECK(minOutputBatchSize_ > 0, "minOutputBatchSize should be larger than 0");
+  VELOX_CHECK_GT(minOutputBatchSize_, 0, "minOutputBatchSize should be larger than 0");
 }
 
 std::shared_ptr<ColumnarBatch> GpuBufferBatchResizer::next() {
@@ -341,7 +333,7 @@ std::shared_ptr<ColumnarBatch> GpuBufferBatchResizer::next() {
   // Compose all cached batches into one
   auto batch = GpuBufferColumnarBatch::compose(arrowPool_, cachedBatches, cachedRows);
 
-  auto finalBatch = makeColumnarBatch(batch->getRowType(), cachedRows, batch->buffers(), pool_, deserializeTime_);
+  auto finalBatch = makeColumnarBatch(batch->getRowType(), cachedRows, batch->buffers(), pool_);
   lockGpu();
 
   //   return makeCudfTable(batch->getRowType(), batch->numRows(), batch->buffers(), pool_, deserializeTime_);

@@ -637,10 +637,10 @@ object VeloxConfig extends ConfigRegistry {
       .createWithDefault(true)
 
   val CUDF_BATCH_SIZE =
-    buildStaticConf("spark.gluten.sql.columnar.backend.velox.cudf.batchSize")
+    buildConf("spark.gluten.sql.columnar.backend.velox.cudf.batchSize")
       .doc("Cudf input batch size after shuffle reader")
       .intConf
-      .createWithDefault(10000)
+      .createWithDefault(Integer.MAX_VALUE)
 
   val MEMORY_DUMP_ON_EXIT =
     buildConf("spark.gluten.monitor.memoryDumpOnExit")

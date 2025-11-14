@@ -116,7 +116,6 @@ RowVectorPtr mergeBufferColumnarBatches(std::vector<std::shared_ptr<GpuBufferCol
       getDefaultMemoryManager()->defaultArrowMemoryPool(),
       getDefaultMemoryManager()->getLeafMemoryPool().get(),
       1200, // output one batch
-      0,
       std::make_unique<ColumnarBatchArray>(bufferBatches));
   auto cb = resizer.next();
   auto batch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
