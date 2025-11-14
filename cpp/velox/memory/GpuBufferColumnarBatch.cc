@@ -79,12 +79,13 @@ std::shared_ptr<GpuBufferColumnarBatch> GpuBufferColumnarBatch::compose(
   bufferTypes.reserve(bufferSize);
 
   for (const auto& colType : type->children()) {
+    bufferSizes[bufferTypes.size()] = arrow::bit_util::BytesForBits(numRows);
     bufferTypes.push_back(BufferType::kNull);
     if (colType->isFixedWidth()) {
       bufferTypes.push_back(BufferType::kValue);
     } else {
       // Add the first offset 0.
-      bufferSizes[bufferTypes.size()] += sizeof(int32_t);
+      bufferSizes[bufferTypes.size()] = sizeof(int32_t);
       bufferTypes.push_back(BufferType::kLength);
       bufferTypes.push_back(BufferType::kValue);
     }
@@ -100,12 +101,11 @@ std::shared_ptr<GpuBufferColumnarBatch> GpuBufferColumnarBatch::compose(
       // The null buffer may be null or length = 0.
       // Maybe optimize later, detect if the null buffer is all true. And set the return null buffer to 0.
       auto& buffer = batch->bufferAt(i);
-      if (bufferTypes[i] == BufferType::kNull && (buffer == nullptr || buffer->size() == 0)) {
-        bufferSizes[i] += arrow::bit_util::BytesForBits(batch->numRows());
-      } else {
-        VELOX_CHECK_NOT_NULL(buffer);
-        bufferSizes[i] += buffer->size();
+      if (bufferTypes[i] == BufferType::kNull)
+        continue;
       }
+      VELOX_CHECK_NOT_NULL(buffer);
+      bufferSizes[i] += buffer->size();
     }
   }
 

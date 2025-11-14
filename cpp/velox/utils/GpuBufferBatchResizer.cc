@@ -327,6 +327,9 @@ std::shared_ptr<ColumnarBatch> GpuBufferBatchResizer::next() {
 
     auto nextBatch = std::dynamic_pointer_cast<GpuBufferColumnarBatch>(nextCb);
     VELOX_CHECK_NOT_NULL(nextBatch);
+    if (nextBatch->numRows() == 0) {
+        continue;
+    }
 
     cachedRows += nextBatch->numRows();
     cachedBatches.push_back(std::move(nextBatch));
