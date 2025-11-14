@@ -94,14 +94,13 @@ std::shared_ptr<GpuBufferColumnarBatch> GpuBufferColumnarBatch::compose(
   // This buffer may be more than the actual reauired buffer for null buffer.
   for (const auto& batch : batches) {
     if (batch->numRows() == 0) {
-      // TODO, need to update offset buffer even it is only one batch.
       continue;
     }
     for (auto i = 0; i < bufferSize; ++i) {
       // The null buffer may be null or length = 0.
       // Maybe optimize later, detect if the null buffer is all true. And set the return null buffer to 0.
       auto& buffer = batch->bufferAt(i);
-      if (bufferTypes[i] == BufferType::kNull)
+      if (bufferTypes[i] == BufferType::kNull) {
         continue;
       }
       VELOX_CHECK_NOT_NULL(buffer);
