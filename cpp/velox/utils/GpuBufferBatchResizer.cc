@@ -332,11 +332,11 @@ std::shared_ptr<ColumnarBatch> GpuBufferBatchResizer::next() {
   // Compose all cached batches into one
   auto batch = GpuBufferColumnarBatch::compose(arrowPool_, cachedBatches, cachedRows);
 
-  auto finalBatch = makeColumnarBatch(batch->getRowType(), cachedRows, batch->buffers(), pool_);
+  // auto finalBatch = makeColumnarBatch(batch->getRowType(), cachedRows, batch->buffers(), pool_);
   lockGpu();
 
-  //   return makeCudfTable(batch->getRowType(), batch->numRows(), batch->buffers(), pool_, deserializeTime_);
-  return finalBatch;
+    return makeCudfTable(batch->getRowType(), batch->numRows(), batch->buffers(), pool_, deserializeTime_);
+  // return finalBatch;
 }
 
 int64_t GpuBufferBatchResizer::spillFixedSize(int64_t size) {
