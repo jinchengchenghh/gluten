@@ -335,7 +335,7 @@ std::shared_ptr<ColumnarBatch> GpuBufferBatchResizer::next() {
   // auto finalBatch = makeColumnarBatch(batch->getRowType(), cachedRows, batch->buffers(), pool_);
   lockGpu();
 
-    return makeCudfTable(batch->getRowType(), batch->numRows(), batch->buffers(), pool_, deserializeTime_);
+    return makeCudfTable(batch->getRowType(), batch->numRows(), batch->buffers(), pool_);
   // return finalBatch;
 }
 
