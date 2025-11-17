@@ -182,10 +182,9 @@ struct DispatchColumn {
       return std::make_unique<rmm::device_buffer>(0, stream, mr);
     }
 
-    auto const allocationSize = cudf::bitmask_allocation_size_bytes(static_cast<cudf::size_type>(buffer->size()));
-    auto mask = std::make_unique<rmm::device_buffer>(allocationSize, stream, mr);
+    auto mask = std::make_unique<rmm::device_buffer>(buffer->size(), stream, mr);
     CUDF_CUDA_TRY(
-        cudaMemcpyAsync(mask->data(), buffer->data(), allocationSize, cudaMemcpyHostToDevice, stream.value()));
+        cudaMemcpyAsync(mask->data(), buffer->data(), buffer->size(), cudaMemcpyHostToDevice, stream.value()));
     return mask;
   }
 
