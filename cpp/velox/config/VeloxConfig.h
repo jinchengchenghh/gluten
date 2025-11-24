@@ -192,5 +192,7 @@ const std::string kVeloxPreferredBatchBytes = "spark.gluten.sql.columnar.backend
 const std::string kCudfEnableTableScan = "spark.gluten.sql.columnar.backend.velox.cudf.enableTableScan";
 const bool kCudfEnableTableScanDefault = false;
 const std::string kCudfHiveConnectorId = "cudf-hive";
+const std::string kCudfMaxConcurrent = "spark.gluten.sql.columnar.backend.velox.cudf.maxConcurrent";
+const int32_t kCudfMaxConcurrentDefault = 1;
 
 } // namespace gluten

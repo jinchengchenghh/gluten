@@ -32,6 +32,7 @@
 #include "velox/experimental/cudf/connectors/hive/CudfHiveConnector.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
 #include "operators/plannodes/CudfVectorStream.h"
+#include "cudf/GpuLock.h"
 #endif
 
 #include "compute/VeloxRuntime.h"
@@ -179,6 +180,7 @@ void VeloxBackend::init(
     cudfConfig.initialize(std::move(options));
     velox::cudf_velox::registerCudf();
     velox::exec::Operator::registerOperator(std::make_unique<CudfVectorStreamOperatorTranslator>());
+    setMaxConcurrent(backendConf_->get<int32_t>(kCudfMaxConcurrent, kCudfMaxConcurrentDefault));
   }
 #endif
 

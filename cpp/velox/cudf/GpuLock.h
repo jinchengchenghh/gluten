@@ -21,6 +21,8 @@
 
 namespace gluten {
 
+void setMaxConcurrent(int maxConcurrent);
+
 /**
  * @brief Acquire the GPU lock (reentrant within the same thread)
  */

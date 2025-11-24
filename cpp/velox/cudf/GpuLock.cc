@@ -22,13 +22,19 @@
 #include <stdexcept>
 #include <glog/logging.h>
 
+#include "<iostream>
+
 namespace gluten {
 
 namespace {
 struct GpuLockState {
   std::mutex gGpuMutex;
   std::condition_variable gGpuCv;
-  std::optional<std::thread::id> gGpuOwner;
+  int maxConcurrent;       // allow 2 concurrent tasks
+  int currentHolders = 0;            // how many threads hold the lock
+
+  // track per-thread recursion counts
+  std::unordered_map<std::thread::id, int> recursionCount;
 };
 
 GpuLockState& getGpuLockState() {
@@ -37,42 +43,58 @@ GpuLockState& getGpuLockState() {
 }
 }
 
+void setMaxConcurrent(int maxConcurrent) {
+    std::cout <<"set the max concurrent to " << maxConcurrent << std::endl;
+    getGpuLockState().maxConcurrent = maxConcurrent;
+}
+
 void lockGpu() {
+    auto& state = getGpuLockState();
     std::thread::id tid = std::this_thread::get_id();
-    std::unique_lock<std::mutex> lock(getGpuLockState().gGpuMutex);
-    if (getGpuLockState().gGpuOwner == tid) {
-        // Reentrant call from the same thread — do nothing
+
+    std::unique_lock<std::mutex> lock(state.gGpuMutex);
+
+    // Reentrant lock for same thread
+    if (state.recursionCount.count(tid) > 0) {
+        state.recursionCount[tid]++;
         return;
     }
 
-
-    // Wait until the GPU lock becomes available
-    getGpuLockState().gGpuCv.wait(lock, [] {
-        return !getGpuLockState().gGpuOwner.has_value();
+    // Wait until a slot becomes available
+    state.gGpuCv.wait(lock, [&] {
+        return state.currentHolders < state.maxConcurrent;
     });
 
-    // Acquire ownership
-    getGpuLockState().gGpuOwner = tid;
+    // Acquire
+    state.currentHolders++;
+    state.recursionCount[tid] = 1;
 }
 
+
 void unlockGpu() {
+    auto& state = getGpuLockState();
     std::thread::id tid = std::this_thread::get_id();
-    std::unique_lock<std::mutex> lock(getGpuLockState().gGpuMutex);
-    if (!getGpuLockState().gGpuOwner.has_value()) {
+
+    std::unique_lock<std::mutex> lock(state.gGpuMutex);
+
+    // Not locked by this thread
+    if (state.recursionCount.count(tid) == 0) {
         LOG(INFO) <<"unlockGpu() called by non-owner thread!"<< std::endl;
         return;
     }
 
-    if (!getGpuLockState().gGpuOwner.has_value() || getGpuLockState().gGpuOwner != tid) {
-        throw std::runtime_error("unlockGpu() called by other-owner thread!");
+    // Handle recursion release
+    state.recursionCount[tid]--;
+    if (state.recursionCount[tid] > 0) {
+        return; // still owns recursively
     }
 
-    // Release ownership
-    getGpuLockState().gGpuOwner = std::nullopt;
+    // Fully release
+    state.recursionCount.erase(tid);
+    state.currentHolders--;
 
-    // Notify one waiting thread
     lock.unlock();
-    getGpuLockState().gGpuCv.notify_one();
+    state.gGpuCv.notify_one();
 }
 
 
