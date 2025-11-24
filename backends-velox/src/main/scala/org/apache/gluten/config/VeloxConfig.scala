@@ -646,9 +646,9 @@ object VeloxConfig extends ConfigRegistry {
 
   val CUDF_MAX_CONCURRENT_TASKS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.cudf.maxConcurrentTasks")
-    .doc("Cudf maximum concurrent tasks number on GPU")
-    .intConf
-    .createWithDefault(1)
+      .doc("Cudf maximum concurrent tasks number on GPU")
+      .intConf
+      .createWithDefault(1)
 
   val MEMORY_DUMP_ON_EXIT =
     buildConf("spark.gluten.monitor.memoryDumpOnExit")
