@@ -21,6 +21,7 @@
 #include <optional>
 #include <stdexcept>
 #include <glog/logging.h>
+#include <unordered_map>
 
 #include <iostream>
 
