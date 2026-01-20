@@ -25,7 +25,7 @@
 
 namespace gluten {
 
-class VeloxColumnarBatchSerializer : public ColumnarBatchSerializer {
+class VeloxColumnarBatchSerializer final : public ColumnarBatchSerializer {
  public:
   VeloxColumnarBatchSerializer(
       arrow::MemoryPool* arrowPool,
@@ -40,7 +40,7 @@ class VeloxColumnarBatchSerializer : public ColumnarBatchSerializer {
 
   std::shared_ptr<ColumnarBatch> deserialize(uint8_t* data, int32_t size) override;
 
- protected:
+ private:
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
   std::unique_ptr<facebook::velox::StreamArena> arena_;
   std::unique_ptr<facebook::velox::IterativeVectorSerializer> serializer_;

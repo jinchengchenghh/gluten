@@ -207,7 +207,6 @@ if(ENABLE_GPU)
     cudf/GpuLock.cc
     shuffle/VeloxGpuShuffleReader.cc
     shuffle/VeloxGpuShuffleWriter.cc
-    operators/serializer/VeloxGpuColumnarBatchSerializer.cc
     utils/GpuBufferBatchResizer.cc
     memory/GpuBufferColumnarBatch.cc)
 endif()
