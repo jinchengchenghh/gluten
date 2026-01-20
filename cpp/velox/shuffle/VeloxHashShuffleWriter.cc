@@ -468,7 +468,7 @@ arrow::Status VeloxHashShuffleWriter::splitFixedWidthValueBuffer(const facebook:
         // No value buffer created for NullType.
         break;
       case 1: // arrow::BooleanType::type_id:
-        splitBoolValueType(srcAddr, dstAddrs);
+        RETURN_NOT_OK(splitBoolType(srcAddr, dstAddrs));
         break;
       case 8:
         RETURN_NOT_OK(splitFixedType<uint8_t>(srcAddr, dstAddrs));
@@ -481,7 +481,7 @@ arrow::Status VeloxHashShuffleWriter::splitFixedWidthValueBuffer(const facebook:
         break;
       case 64: {
         if (column->type()->kind() == facebook::velox::TypeKind::TIMESTAMP) {
-          RETURN_NOT_OK(splitTimestamp(srcAddr, dstAddrs));
+          RETURN_NOT_OK(splitFixedType<facebook::velox::int128_t>(srcAddr, dstAddrs));
         } else {
           RETURN_NOT_OK(splitFixedType<uint64_t>(srcAddr, dstAddrs));
         }
@@ -510,7 +510,7 @@ arrow::Status VeloxHashShuffleWriter::splitFixedWidthValueBuffer(const facebook:
   return arrow::Status::OK();
 }
 
-void VeloxHashShuffleWriter::splitBoolType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs) {
+arrow::Status VeloxHashShuffleWriter::splitBoolType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs) {
   // assume batch size = 32k; reducer# = 4K; row/reducer = 8
   for (auto& pid : partitionUsed_) {
     // set the last byte
@@ -596,6 +596,7 @@ void VeloxHashShuffleWriter::splitBoolType(const uint8_t* srcAddr, const std::ve
       dstaddr[dstOffset >> 3] = dst;
     }
   }
+  return arrow::Status::OK();
 }
 
 arrow::Status VeloxHashShuffleWriter::splitValidityBuffer(const facebook::velox::RowVector& rv) {
@@ -618,7 +619,7 @@ arrow::Status VeloxHashShuffleWriter::splitValidityBuffer(const facebook::velox:
       }
 
       auto srcAddr = (const uint8_t*)(column->mutableRawNulls());
-      splitBoolType(srcAddr, dstAddrs);
+      RETURN_NOT_OK(splitBoolType(srcAddr, dstAddrs));
     } else {
       VsPrintLF(colIdx, " column hasn't null");
     }
@@ -776,7 +777,7 @@ arrow::Status VeloxHashShuffleWriter::initColumnTypes(const facebook::velox::Row
       case arrow::BooleanType::type_id: {
         simpleColumnIndices_.push_back(i);
         isValidityBuffer_.push_back(true);
-        isValidityBuffer_.push_back(boolIsBit());
+        isValidityBuffer_.push_back(true);
       } break;
       case arrow::NullType::type_id:
         break;
@@ -1081,11 +1082,11 @@ arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> VeloxHashShuffleWrite
         auto& valueBuffer = buffers[kFixedWidthValueBufferIndex];
         ARROW_RETURN_IF(!valueBuffer, arrow::Status::Invalid("Value buffer of fixed-width array is null."));
         if (arrowColumnTypes_[i]->id() == arrow::BooleanType::type_id) {
-          valueBufferSize = valueBufferSizeForBool(numRows);
+          valueBufferSize = arrow::bit_util::BytesForBits(numRows);
         } else if (veloxColumnTypes_[i]->isShortDecimal()) {
           valueBufferSize = numRows * (arrow::bit_width(arrow::Int64Type::type_id) >> 3);
         } else if (veloxColumnTypes_[i]->kind() == facebook::velox::TypeKind::TIMESTAMP) {
-          valueBufferSize = valueBufferSizeForTimestamp(numRows);
+          valueBufferSize = facebook::velox::BaseVector::byteSize<facebook::velox::Timestamp>(numRows);
         } else {
           valueBufferSize = numRows * (arrow::bit_width(arrowColumnTypes_[i]->id()) >> 3);
         }
@@ -1281,23 +1282,15 @@ uint64_t VeloxHashShuffleWriter::valueBufferSizeForBinaryArray(uint32_t binaryId
   return (binaryArrayTotalSizeBytes_[binaryIdx] + totalInputNumRows_ - 1) / totalInputNumRows_ * newSize + 1024;
 }
 
-uint64_t VeloxHashShuffleWriter::valueBufferSizeForBool(uint32_t newSize) {
-  return arrow::bit_util::BytesForBits(newSize);
-}
-
-uint64_t VeloxHashShuffleWriter::valueBufferSizeForTimestamp(uint32_t newSize) {
-  return facebook::velox::BaseVector::byteSize<facebook::velox::Timestamp>(newSize);
-}
-
 uint64_t VeloxHashShuffleWriter::valueBufferSizeForFixedWidthArray(uint32_t fixedWidthIndex, uint32_t newSize) {
   uint64_t valueBufferSize = 0;
   auto columnIdx = simpleColumnIndices_[fixedWidthIndex];
   if (arrowColumnTypes_[columnIdx]->id() == arrow::BooleanType::type_id) {
-    valueBufferSize = valueBufferSizeForBool(newSize);
+    valueBufferSize = arrow::bit_util::BytesForBits(newSize);
   } else if (veloxColumnTypes_[columnIdx]->isShortDecimal()) {
     valueBufferSize = newSize * (arrow::bit_width(arrow::Int64Type::type_id) >> 3);
   } else if (veloxColumnTypes_[columnIdx]->kind() == facebook::velox::TypeKind::TIMESTAMP) {
-    valueBufferSize = valueBufferSizeForTimestamp(newSize);
+    valueBufferSize = facebook::velox::BaseVector::byteSize<facebook::velox::Timestamp>(newSize);
   } else {
     valueBufferSize = newSize * (arrow::bit_width(arrowColumnTypes_[columnIdx]->id()) >> 3);
   }

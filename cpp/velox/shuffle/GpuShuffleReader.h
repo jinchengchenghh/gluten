@@ -30,15 +30,18 @@ namespace gluten {
 /// Convert the buffers to cudf table.
 /// Add a lock after reader produces the Vector, relase the lock after the thread processes all the batches.
 /// After move the shuffle read operation to gpu, move the lock to start read.
-class VeloxGpuHashShuffleReaderDeserializer final : public ColumnarBatchIterator {
+class GpuHashShuffleReaderDeserializer final : public ColumnarBatchIterator {
  public:
-  VeloxGpuHashShuffleReaderDeserializer(
+  GpuHashShuffleReaderDeserializer(
       const std::shared_ptr<StreamReader>& streamReader,
       const std::shared_ptr<arrow::Schema>& schema,
       const std::shared_ptr<arrow::util::Codec>& codec,
       const facebook::velox::RowTypePtr& rowType,
+      int32_t batchSize,
       int64_t readerBufferSize,
       VeloxMemoryManager* memoryManager,
+      std::vector<bool>* isValidityBuffer,
+      bool hasComplexType,
       int64_t& deserializeTime,
       int64_t& decompressTime);
 
@@ -53,8 +56,12 @@ class VeloxGpuHashShuffleReaderDeserializer final : public ColumnarBatchIterator
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::util::Codec> codec_;
   facebook::velox::RowTypePtr rowType_;
+  int32_t batchSize_;
   int64_t readerBufferSize_;
   VeloxMemoryManager* memoryManager_;
+
+  std::vector<bool>* isValidityBuffer_;
+  bool hasComplexType_;
 
   int64_t& deserializeTime_;
   int64_t& decompressTime_;
@@ -63,5 +70,9 @@ class VeloxGpuHashShuffleReaderDeserializer final : public ColumnarBatchIterator
 
   bool reachedEos_{false};
   bool blockTypeResolved_{false};
+
+  // Not used.
+  std::vector<int32_t> dictionaryFields_{};
+  std::vector<facebook::velox::VectorPtr> dictionaries_{};
 };
 } // namespace gluten

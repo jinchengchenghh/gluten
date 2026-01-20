@@ -28,11 +28,15 @@ ENV CUDA_ARCHITECTURES=70
 ENV LD_LIBRARY_PATH=/opt/gluten/ep/build-velox/build/velox_ep/_build/release/_deps/curl-build/lib:$LD_LIBRARY_PATH
 
 WORKDIR /opt/gluten
+<<<<<<< HEAD
 RUN rm -rf /opt/rh/gcc-toolset-12 && ln -s /opt/rh/gcc-toolset-14 /opt/rh/gcc-toolset-12; \
     dnf remove -y cuda-toolkit-12* && dnf install -y cuda-toolkit-13-1; \
     dnf autoremove -y && dnf clean all; \
     source /opt/rh/gcc-toolset-12/enable; \
     bash ./dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=ON --spark_version=3.4 --build_tests=ON --build_benchmarks=ON --enable_gpu=ON && rm -rf /opt/gluten
+=======
+RUN bash ./dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=ON --spark_version=3.4 --enable_gpu=ON && rm -rf /opt/gluten
+>>>>>>> parent of 157b96ea7 ([GLUTEN-10933][VL] Support resize GPU batch and shuffle reader outputs cudf::table (#11090))
 
 # You can try the data in folder backends-velox/src/test/resources/tpch-data-parquet
 

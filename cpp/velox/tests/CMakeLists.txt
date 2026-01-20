@@ -90,8 +90,6 @@ if(ENABLE_GPU)
       TIMEOUT 3000)
   endfunction()
 
-  add_velox_gpu_test(velox_gpu_shuffle_writer_test SOURCES
-                     VeloxGpuShuffleWriterTest.cc)
 endif()
 
 set(VELOX_TEST_COMMON_SRCS JsonToProtoConverter.cc FilePathGenerator.cc)

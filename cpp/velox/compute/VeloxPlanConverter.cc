@@ -21,6 +21,7 @@
 #include "compute/ResultIterator.h"
 #include "config/GlutenConfig.h"
 #include "iceberg/IcebergPlanConverter.h"
+#include "operators/plannodes/RowVectorStream.h"
 #include "velox/common/file/FileSystems.h"
 
 namespace gluten {
