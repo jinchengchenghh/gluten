@@ -236,10 +236,13 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> VeloxHashShuffleWriter::generateCo
 arrow::Status VeloxHashShuffleWriter::write(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) {
   writtenBytes_ = 0;
   {
-    auto veloxColumnBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
-    VELOX_CHECK_NOT_NULL(veloxColumnBatch);
-    auto rv = veloxColumnBatch->getFlattenedRowVector();
-    std::cout <<"exchange get the vector ==============" << rv->toString() " data "<<rv->toString(0, 10)<< std::endl;
+    if (cb->numRows() <=36) {
+      auto veloxColumnBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
+      VELOX_CHECK_NOT_NULL(veloxColumnBatch);
+      auto rv = veloxColumnBatch->getFlattenedRowVector();
+      std::cout <<"exchange get the vector ==============" << rv->toString() << " data "<<rv->toString(0, 40)<< std::endl;
+    }
+    
   }
   
   if (partitioning_ == Partitioning::kSingle) {
