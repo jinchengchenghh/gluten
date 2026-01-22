@@ -20,6 +20,7 @@
 
 #include "velox/dwio/common/FileSink.h"
 #include "velox/dwio/parquet/writer/Writer.h"
+#include "velox/experimental/cudf/vector/CudfVector.h"
 
 namespace gluten {
 
@@ -47,6 +48,16 @@ arrow::Status VeloxColumnarBatchWriter::write(const std::shared_ptr<ColumnarBatc
   if (!writer_) {
     RETURN_NOT_OK(initWriter(facebook::velox::asRowType(rowVector->type())));
   }
+
+  #ifdef GLUTEN_ENABLE_GPU
+  auto cudfVector = std::dynamic_pointer_cast<facebook::velox::cudf_velox::CudfVector>(vp);
+    if (cudfVector != nullptr) {
+      auto tableView = cudfVector->getTableView();
+      // Convert back to Velox
+      rowVector = cudf_velox::with_arrow::toVeloxColumn(
+        tableView, getDefaultMemoryManager()->getLeafMemoryPool().get(), "", cudfVector->stream());
+    }
+  #endif
 
   writer_->write(rowVector);
   return arrow::Status::OK();
