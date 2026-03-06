@@ -176,33 +176,70 @@ GpuBufferBatchResizer::GpuBufferBatchResizer(
   VELOX_CHECK_GT(minOutputBatchSize_, 0, "minOutputBatchSize should be larger than 0");
 }
 
-std::shared_ptr<ColumnarBatch> GpuBufferBatchResizer::next() {
+std::shared_ptr<GpuBufferColumnarBatch> GpuBufferBatchResizer::fetchAndComposeBatch() {
   std::vector<std::shared_ptr<GpuBufferColumnarBatch>> cachedBatches;
   int32_t cachedRows = 0;
   while (cachedRows < minOutputBatchSize_) {
     auto nextCb = in_->next();
     if (!nextCb) {
-      // No more input.
+      inputExhausted_ = true;
       break;
     }
 
     auto nextBatch = std::dynamic_pointer_cast<GpuBufferColumnarBatch>(nextCb);
     VELOX_CHECK_NOT_NULL(nextBatch);
     if (nextBatch->numRows() == 0) {
-        continue;
+      continue;
     }
 
     cachedRows += nextBatch->numRows();
     cachedBatches.push_back(std::move(nextBatch));
   }
+
   if (cachedRows == 0) {
     return nullptr;
   }
 
-  // Compose all cached batches into one
-  auto batch = GpuBufferColumnarBatch::compose(arrowPool_, cachedBatches, cachedRows);
+  return GpuBufferColumnarBatch::compose(arrowPool_, cachedBatches, cachedRows);
+}
 
-  lockGpu();
+std::shared_ptr<ColumnarBatch> GpuBufferBatchResizer::next() {
+  // Phase 1: Prefetch — keep reading batches into the CPU queue while the GPU
+  // lock is NOT available. As soon as we can acquire the GPU lock, stop
+  // prefetching and proceed to send one batch to the GPU.
+
+  // Ensure at least one batch is in the prefetch queue (blocking read).
+  if (prefetchQueue_.empty() && !inputExhausted_) {
+    auto batch = fetchAndComposeBatch();
+    if (batch) {
+      prefetchQueue_.push_back(std::move(batch));
+    }
+  }
+
+  if (prefetchQueue_.empty()) {
+    // Input exhausted and nothing queued.
+    return nullptr;
+  }
+
+  // Try to acquire the GPU lock non-blockingly. While we can't get it,
+  // keep prefetching more batches into CPU memory.
+  while (!tryLockGpu()) {
+    // GPU is busy — use this time to prefetch more data on CPU.
+    if (!inputExhausted_) {
+      auto batch = fetchAndComposeBatch();
+      if (batch) {
+        prefetchQueue_.push_back(std::move(batch));
+      }
+    } else {
+      // No more input to prefetch; just block-wait for the GPU.
+      lockGpu();
+      break;
+    }
+  }
+
+  // GPU lock is acquired. Take the first prefetched batch and convert to cuDF.
+  auto batch = std::move(prefetchQueue_.front());
+  prefetchQueue_.pop_front();
 
   return makeCudfTable(batch->getRowType(), batch->numRows(), batch->buffers(), pool_);
 }
