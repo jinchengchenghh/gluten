@@ -20,6 +20,7 @@
 #include <deque>
 
 #include "memory/ColumnarBatchIterator.h"
+#include "memory/GpuBufferColumnarBatch.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "utils/Exception.h"
 #include "velox/common/memory/MemoryPool.h"
@@ -52,7 +53,6 @@ class GpuBufferBatchResizer : public ColumnarBatchIterator {
 
   std::deque<std::shared_ptr<GpuBufferColumnarBatch>> prefetchQueue_;
   int64_t prefetchedBytes_ = 0;
-  bool inputExhausted_ = false;
 };
 
 } // namespace gluten

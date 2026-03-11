@@ -681,7 +681,8 @@ object VeloxConfig extends ConfigRegistry {
 
   val CUDF_SHUFFLE_MAX_PREFETCH_BYTES =
     buildConf("spark.gluten.sql.columnar.backend.velox.cudf.shuffleMaxPrefetchBytes")
-      .doc("Maximum bytes to prefetch in CPU memory during GPU shuffle read while waiting for GPU lock.")
+      .doc("Maximum bytes to prefetch in CPU memory during GPU shuffle read while waiting" +
+        "for GPU available.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1028MB")
 

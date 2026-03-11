@@ -17,7 +17,6 @@
 
 #include "GpuBufferBatchResizer.h"
 #include "cudf/GpuLock.h"
-#include "memory/GpuBufferColumnarBatch.h"
 #include "utils/Timer.h"
 #include "velox/experimental/cudf/exec/Utilities.h"
 #include "velox/experimental/cudf/exec/VeloxCudfInterop.h"
@@ -168,6 +167,7 @@ GpuBufferBatchResizer::GpuBufferBatchResizer(
     arrow::MemoryPool* arrowPool,
     facebook::velox::memory::MemoryPool* pool,
     int32_t minOutputBatchSize,
+    int64_t maxPrefetchSize,
     std::unique_ptr<ColumnarBatchIterator> in)
     : arrowPool_(arrowPool),
       pool_(pool),
@@ -184,7 +184,6 @@ std::shared_ptr<GpuBufferColumnarBatch> GpuBufferBatchResizer::fetchAndComposeBa
   while (cachedRows < minOutputBatchSize_) {
     auto nextCb = in_->next();
     if (!nextCb) {
-      inputExhausted_ = true;
       break;
     }
 
@@ -207,7 +206,7 @@ std::shared_ptr<GpuBufferColumnarBatch> GpuBufferBatchResizer::fetchAndComposeBa
 
 std::shared_ptr<ColumnarBatch> GpuBufferBatchResizer::next() {
   // Ensure at least one batch is in the prefetch queue.
-  if (prefetchQueue_.empty() && !inputExhausted_) {
+  if (prefetchQueue_.empty()) {
     auto batch = fetchAndComposeBatch();
     if (batch) {
       prefetchedBytes_ += batch->numBytes();
@@ -222,11 +221,18 @@ std::shared_ptr<ColumnarBatch> GpuBufferBatchResizer::next() {
   // Try to acquire the GPU lock non-blockingly. While we can't get it,
   // keep prefetching more batches into CPU memory within the budget.
   while (!tryLockGpu()) {
-    if (!inputExhausted_ && prefetchedBytes_ < maxPrefetchSize_) {
+    LOG(WARNING)<< "Failed to acquire GPU lock, currently prefetched " << prefetchQueue_.size() << " batches ("
+                 << prefetchedBytes_ << " bytes).";
+    if (prefetchedBytes_ < maxPrefetchSize_) {
       auto batch = fetchAndComposeBatch();
       if (batch) {
         prefetchedBytes_ += batch->numBytes();
         prefetchQueue_.push_back(std::move(batch));
+      } else {
+        // All the batches consumed.
+        LOG(WARNING) << "Prefetched " << prefetchQueue_.size() << " batches (" << prefetchedBytes_ << " bytes) before blocking on GPU lock.";
+        lockGpu();
+        break;
       }
     } else {
       LOG(WARNING) << "Prefetched " << prefetchQueue_.size() << " batches (" << prefetchedBytes_ << " bytes) before blocking on GPU lock.";
